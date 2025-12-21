@@ -12,24 +12,24 @@ const polling = ref<ReturnType<typeof setInterval> | null>(null);
 const poetId = ref("Kiszely_Jozsef_Laszlone");
 
 const steps = [
-  { label: 'Import', value: 'import' },
-  { label: 'Review Poems', value: 'review-poems' },
-  { label: 'Review Chapters', value: 'review-chapters' },
-  { label: 'Download', value: 'download' }
+  { label: 'Importálás', value: 'import' },
+  { label: 'Versek ellenőrzése', value: 'review-poems' },
+  { label: 'Fejezetek áttekintése', value: 'review-chapters' },
+  { label: 'Letöltés', value: 'download' }
 ];
 
 const currentStepIndex = computed(() => {
-  if (bookHtml.value) return 3; // Download
+  if (bookHtml.value) return 3; // Letöltés
   if (status.value === 'waiting') {
-    if (chapters.value.length > 0) return 2; // Review Chapters
-    return 1; // Review Poems
+    if (chapters.value.length > 0) return 2; // Fejezetek áttekintése
+    return 1; // Versek ellenőrzése
   }
   return 0;
 });
 
 async function startWorkflow() {
   if (!poetId.value.trim()) {
-    error.value = "Please enter a Poet ID.";
+    error.value = "Kérlek, add meg a Poet.hu azonosítót.";
     return;
   }
 
@@ -63,7 +63,7 @@ async function startWorkflow() {
       e?.data?.statusMessage ||
       e?.statusMessage ||
       e?.message ||
-      "Unknown error";
+      "Ismeretlen hiba történt";
   } finally {
     loading.value = false;
   }
@@ -88,7 +88,7 @@ async function pollExecution() {
       e?.data?.statusMessage ||
       e?.statusMessage ||
       e?.message ||
-      "Unknown error";
+      "Ismeretlen hiba történt";
   }
 }
 
@@ -114,7 +114,7 @@ function downloadHtml() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'my-poem-book.html';
+  a.download = 'verseskonyvem.html';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -123,7 +123,7 @@ function downloadHtml() {
 
 async function resumeExecution(decision: string) {
   if (!resumeUrl.value) {
-    error.value = "Missing resume URL from n8n.";
+    error.value = "Hiányzik a folytatáshoz szükséges URL (n8n).";
     return;
   }
 
@@ -150,7 +150,7 @@ async function resumeExecution(decision: string) {
       e?.data?.statusMessage ||
       e?.statusMessage ||
       e?.message ||
-      "Unknown error";
+      "Ismeretlen hiba történt";
   } finally {
     loading.value = false;
   }
@@ -195,8 +195,8 @@ onBeforeUnmount(() => {
 
         <!-- Step 1: Import -->
         <div v-if="currentStepIndex === 0" class="pt-6 space-y-4 max-w-sm mx-auto">
-           <UFormGroup label="Poet ID (from poet.hu URL)" name="poetId">
-             <UInput v-model="poetId" placeholder="e.g. Kiszely_Jozsef_Laszlone" />
+           <UFormGroup label="Poet.hu azonosító (a szerzői URL-ből)" name="poetId">
+             <UInput v-model="poetId" placeholder="pl. Kiszely_Jozsef_Laszlone" />
            </UFormGroup>
 
           <div class="flex items-center justify-center gap-3 pt-2">
@@ -206,7 +206,7 @@ onBeforeUnmount(() => {
               @click="startWorkflow"
               :disabled="!poetId"
             >
-              Start workflow
+              Folyamat indítása
             </UButton>
           </div>
         </div>
@@ -216,17 +216,17 @@ onBeforeUnmount(() => {
             v-if="error"
             color="red"
             variant="soft"
-            title="Request failed"
+            title="A kérés sikertelen"
             :description="error"
           />
 
           <UCard v-if="executionId && currentStepIndex === 0" class="text-left mt-4">
              <template #header>
-              <div class="font-medium">Execution status</div>
+              <div class="font-medium">Végrehajtás állapota</div>
             </template>
             <div class="text-sm">
-              <div><span class="font-medium">ID:</span> {{ executionId }}</div>
-              <div><span class="font-medium">Status:</span> {{ status || "unknown" }}</div>
+              <div><span class="font-medium">Azonosító:</span> {{ executionId }}</div>
+              <div><span class="font-medium">Állapot:</span> {{ status === 'running' ? 'folyamatban' : (status || "ismeretlen") }}</div>
             </div>
           </UCard>
 
@@ -234,29 +234,29 @@ onBeforeUnmount(() => {
           <div v-if="currentStepIndex === 1">
             <UCard class="text-left mt-4">
               <template #header>
-                <div class="font-medium">Decision required</div>
+                <div class="font-medium">Beavatkozás szükséges</div>
               </template>
               <div class="space-y-3 text-sm">
-                <p>n8n is waiting for your decision. Review the poems below and continue.</p>
+                <p>A rendszer vár a döntésére. Kérjük, nézze át a verseket, és folytassa a folyamatot.</p>
                 <div class="flex gap-2">
-                  <UButton color="primary" @click="resumeExecution('continue')">Continue</UButton>
-                  <UButton color="gray" variant="soft" @click="resumeExecution('stop')">Stop</UButton>
+                  <UButton color="primary" @click="resumeExecution('continue')">Folytatás</UButton>
+                  <UButton color="gray" variant="soft" @click="resumeExecution('stop')">Leállítás</UButton>
                 </div>
               </div>
             </UCard>
 
                       <UCard v-if="poems.length" class="text-left mt-4">
                         <template #header>
-                          <div class="font-medium">Poems</div>
+                          <div class="font-medium">Versek</div>
                         </template>
                         <div class="space-y-4 text-sm">
                           <div v-for="(poem, idx) in poems" :key="idx" class="border-b pb-3 last:border-b-0 flex items-start gap-4">
                             <div class="flex-1 min-w-0">
-                              <div class="font-medium">{{ poem.title || `Poem ${idx + 1}` }}</div>
+                              <div class="font-medium">{{ poem.title || `${idx + 1}. vers` }}</div>
                               <pre class="whitespace-pre-wrap text-xs text-gray-600">{{ poem.poem }}</pre>
                             </div>
                             <UButton
-                              v-if="status === 'waiting' && currentStepIndex === 1"
+                              v-if="status === 'waiting'"
                               color="red"
                               variant="ghost"
                               icon="i-lucide-trash"
@@ -271,28 +271,28 @@ onBeforeUnmount(() => {
           <div v-if="currentStepIndex === 2">
             <UCard class="text-left mt-4">
               <template #header>
-                <div class="font-medium">Review Chapters</div>
+                <div class="font-medium">Fejezetek ellenőrzése</div>
               </template>
               <div class="space-y-3 text-sm">
-                <p>Review the AI-generated chapters. You can rename them below.</p>
+                <p>Ellenőrizze az AI által generált fejezeteket. Alább átnevezheti őket.</p>
                 <div class="flex gap-2">
-                  <UButton color="primary" @click="resumeExecution('continue')">Generate Book</UButton>
-                  <UButton color="gray" variant="soft" @click="resumeExecution('stop')">Stop</UButton>
+                  <UButton color="primary" @click="resumeExecution('continue')">Könyv generálása</UButton>
+                  <UButton color="gray" variant="soft" @click="resumeExecution('stop')">Leállítás</UButton>
                 </div>
               </div>
             </UCard>
 
             <UCard v-if="chapters.length" class="text-left mt-4">
               <template #header>
-                <div class="font-medium">Chapters</div>
+                <div class="font-medium">Fejezetek</div>
               </template>
               <div class="space-y-4 text-sm">
                 <div v-for="(chapter, idx) in chapters" :key="idx" class="border-b pb-4 last:border-b-0">
-                  <UFormGroup :label="`Chapter ${idx + 1} Title`">
+                  <UFormGroup :label="`${idx + 1}. fejezet címe`" class="text-left">
                     <UInput v-model="chapter.name" />
                   </UFormGroup>
-                  <div class="mt-2 text-xs text-gray-500">
-                    Contains {{ chapter.poems?.length || 0 }} poems.
+                  <div class="mt-2 text-xs text-gray-500 text-left">
+                    {{ chapter.poems?.length || 0 }} verset tartalmaz.
                   </div>
                 </div>
               </div>
@@ -303,13 +303,13 @@ onBeforeUnmount(() => {
           <div v-if="currentStepIndex === 3">
             <UCard v-if="bookHtml" class="text-left mt-4">
               <template #header>
-                <div class="font-medium">Generated Book Preview</div>
+                <div class="font-medium">Generált könyv előnézete</div>
               </template>
               <div class="w-full aspect-[1/1.41] border rounded-lg overflow-hidden bg-white">
                 <iframe
                   :srcdoc="bookHtml"
                   class="w-full h-full border-none"
-                  title="Book Preview"
+                  title="Könyv előnézet"
                 ></iframe>
               </div>
               <template #footer>
@@ -320,7 +320,7 @@ onBeforeUnmount(() => {
                     icon="i-lucide-download"
                     @click="downloadHtml"
                   >
-                    Download HTML
+                    HTML letöltése
                   </UButton>
                 </div>
               </template>
@@ -329,7 +329,7 @@ onBeforeUnmount(() => {
           
            <UCard v-if="result && currentStepIndex !== 1" class="text-left mt-4">
             <template #header>
-              <div class="font-medium">n8n response</div>
+              <div class="font-medium">n8n válasz</div>
             </template>
             <pre class="text-xs whitespace-pre-wrap break-words">{{ result }}</pre>
           </UCard>
