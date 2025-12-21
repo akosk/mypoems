@@ -1,76 +1,267 @@
+<script setup lang="ts">
+const loading = ref(false);
+const result = ref<any>(null);
+const error = ref<string | null>(null);
+const executionId = ref<string | null>(null);
+const resumeUrl = ref<string | null>(null);
+const status = ref<string | null>(null);
+const poems = ref<Array<{ title?: string; poem?: string; url?: string }>>([]);
+const bookHtml = ref<string | null>(null);
+const polling = ref<ReturnType<typeof setInterval> | null>(null);
+
+async function startWorkflow() {
+  loading.value = true;
+  result.value = null;
+  error.value = null;
+  executionId.value = null;
+  resumeUrl.value = null;
+  status.value = null;
+  poems.value = [];
+  bookHtml.value = null;
+
+  try {
+    const res = await $fetch("/api/start", {
+      method: "POST",
+      body: {}
+    });
+    result.value = res;
+    executionId.value = res?.data?.executionId || res?.executionId || null;
+    resumeUrl.value = res?.data?.resumeUrl || res?.resumeUrl || null;
+    status.value = res?.data?.status || res?.status || "running";
+
+    if (executionId.value) {
+      startPolling();
+    }
+  } catch (e: any) {
+    error.value =
+      e?.data?.statusMessage ||
+      e?.statusMessage ||
+      e?.message ||
+      "Unknown error";
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function pollExecution() {
+  if (!executionId.value) return;
+
+  try {
+    const res = await $fetch("/api/execution", {
+      method: "GET",
+      query: { executionId: executionId.value }
+    });
+
+    status.value = res?.status || status.value;
+    if (res?.resumeUrl) resumeUrl.value = res.resumeUrl;
+    if (Array.isArray(res?.poems)) poems.value = res.poems;
+    if (res?.bookHtml) bookHtml.value = res.bookHtml;
+  } catch (e: any) {
+    error.value =
+      e?.data?.statusMessage ||
+      e?.statusMessage ||
+      e?.message ||
+      "Unknown error";
+  }
+}
+
+function startPolling() {
+  if (polling.value) clearInterval(polling.value);
+  polling.value = setInterval(() => {
+    if (status.value === "finished" || status.value === "error") {
+      if (polling.value) clearInterval(polling.value);
+      polling.value = null;
+      return;
+    }
+    pollExecution();
+  }, 2000);
+}
+
+function downloadHtml() {
+  if (!bookHtml.value) return;
+  const blob = new Blob([bookHtml.value], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'my-poem-book.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function resumeExecution(decision: string) {
+  if (!resumeUrl.value) {
+    error.value = "Missing resume URL from n8n.";
+    return;
+  }
+
+  loading.value = true;
+  error.value = null;
+
+  try {
+    const res = await $fetch("/api/resume", {
+      method: "POST",
+      body: {
+        resumeUrl: resumeUrl.value,
+        data: {
+          decision,
+          poems: poems.value
+        }
+      }
+    });
+    result.value = res;
+    status.value = "running";
+  } catch (e: any) {
+    error.value =
+      e?.data?.statusMessage ||
+      e?.statusMessage ||
+      e?.message ||
+      "Unknown error";
+  } finally {
+    loading.value = false;
+  }
+}
+
+onBeforeUnmount(() => {
+  if (polling.value) clearInterval(polling.value);
+});
+</script>
+
 <template>
-  <div>
-    <UPageHero
-      title="Nuxt Starter Template"
-      description="A production-ready starter template powered by Nuxt UI. Build beautiful, accessible, and performant applications in minutes, not hours."
-      :links="[{
-        label: 'Get started',
-        to: 'https://ui.nuxt.com/docs/getting-started/installation/nuxt',
-        target: '_blank',
-        trailingIcon: 'i-lucide-arrow-right',
-        size: 'xl'
-      }, {
-        label: 'Use this template',
-        to: 'https://github.com/nuxt-ui-templates/starter',
-        target: '_blank',
-        icon: 'i-simple-icons-github',
-        size: 'xl',
-        color: 'neutral',
-        variant: 'subtle'
-      }]"
-    />
+  <UContainer class="min-h-screen flex items-center">
+    <div class="w-full py-16">
+      <div class="mx-auto max-w-2xl text-center space-y-6">
+        <p class="text-sm text-gray-500">mypoems</p>
 
-    <UPageSection
-      id="features"
-      title="Everything you need to build modern Nuxt apps"
-      description="Start with a solid foundation. This template includes all the essentials for building production-ready applications with Nuxt UI's powerful component system."
-      :features="[{
-        icon: 'i-lucide-rocket',
-        title: 'Production-ready from day one',
-        description: 'Pre-configured with TypeScript, ESLint, Tailwind CSS, and all the best practices. Focus on building features, not setting up tooling.'
-      }, {
-        icon: 'i-lucide-palette',
-        title: 'Beautiful by default',
-        description: 'Leveraging Nuxt UI\'s design system with automatic dark mode, consistent spacing, and polished components that look great out of the box.'
-      }, {
-        icon: 'i-lucide-zap',
-        title: 'Lightning fast',
-        description: 'Optimized for performance with SSR/SSG support, automatic code splitting, and edge-ready deployment. Your users will love the speed.'
-      }, {
-        icon: 'i-lucide-blocks',
-        title: '100+ components included',
-        description: 'Access Nuxt UI\'s comprehensive component library. From forms to navigation, everything is accessible, responsive, and customizable.'
-      }, {
-        icon: 'i-lucide-code-2',
-        title: 'Developer experience first',
-        description: 'Auto-imports, hot module replacement, and TypeScript support. Write less boilerplate and ship more features.'
-      }, {
-        icon: 'i-lucide-shield-check',
-        title: 'Built for scale',
-        description: 'Enterprise-ready architecture with proper error handling, SEO optimization, and security best practices built-in.'
-      }]"
-    />
+        <h1 class="text-4xl font-semibold tracking-tight">
+          Turn your poems into a beautifully printed book.
+        </h1>
 
-    <UPageSection>
-      <UPageCTA
-        title="Ready to build your next Nuxt app?"
-        description="Join thousands of developers building with Nuxt and Nuxt UI. Get this template and start shipping today."
-        variant="subtle"
-        :links="[{
-          label: 'Start building',
-          to: 'https://ui.nuxt.com/docs/getting-started/installation/nuxt',
-          target: '_blank',
-          trailingIcon: 'i-lucide-arrow-right',
-          color: 'neutral'
-        }, {
-          label: 'View on GitHub',
-          to: 'https://github.com/nuxt-ui-templates/starter',
-          target: '_blank',
-          icon: 'i-simple-icons-github',
-          color: 'neutral',
-          variant: 'outline'
-        }]"
-      />
-    </UPageSection>
-  </div>
+        <p class="text-lg text-gray-600">
+          Pay, import from poet.hu, review categories, generate a PDF, and send to print in one flow.
+        </p>
+
+        <div class="flex items-center justify-center gap-3 pt-2">
+          <UButton
+            size="lg"
+            :loading="loading"
+            @click="startWorkflow"
+          >
+            Start workflow
+          </UButton>
+
+          <UButton
+            size="lg"
+            color="gray"
+            variant="soft"
+            to="#how-it-works"
+          >
+            How it works
+          </UButton>
+        </div>
+
+        <div class="pt-6">
+          <UAlert
+            v-if="error"
+            color="red"
+            variant="soft"
+            title="Request failed"
+            :description="error"
+          />
+
+          <UCard v-if="executionId" class="text-left mt-4">
+            <template #header>
+              <div class="font-medium">Execution status</div>
+            </template>
+            <div class="text-sm">
+              <div><span class="font-medium">ID:</span> {{ executionId }}</div>
+              <div><span class="font-medium">Status:</span> {{ status || "unknown" }}</div>
+            </div>
+          </UCard>
+
+          <UCard v-if="status === 'waiting'" class="text-left mt-4">
+            <template #header>
+              <div class="font-medium">Decision required</div>
+            </template>
+            <div class="space-y-3 text-sm">
+              <p>n8n is waiting for your decision. Review the poems below and continue.</p>
+              <div class="flex gap-2">
+                <UButton color="primary" @click="resumeExecution('continue')">Continue</UButton>
+                <UButton color="gray" variant="soft" @click="resumeExecution('stop')">Stop</UButton>
+              </div>
+            </div>
+          </UCard>
+
+          <UCard v-if="poems.length" class="text-left mt-4">
+            <template #header>
+              <div class="font-medium">Poems</div>
+            </template>
+            <div class="space-y-4 text-sm">
+              <div v-for="(poem, idx) in poems" :key="idx" class="border-b pb-3 last:border-b-0">
+                <div class="font-medium">{{ poem.title || `Poem ${idx + 1}` }}</div>
+                <pre class="whitespace-pre-wrap text-xs text-gray-600">{{ poem.poem }}</pre>
+              </div>
+            </div>
+          </UCard>
+
+          <UCard v-if="bookHtml" class="text-left mt-4">
+            <template #header>
+              <div class="font-medium">Generated Book Preview</div>
+            </template>
+            <div class="w-full aspect-[1/1.41] border rounded-lg overflow-hidden bg-white">
+              <iframe
+                :srcdoc="bookHtml"
+                class="w-full h-full border-none"
+                title="Book Preview"
+              ></iframe>
+            </div>
+            <template #footer>
+              <div class="flex justify-end gap-2">
+                <UButton
+                  color="gray"
+                  variant="ghost"
+                  icon="i-lucide-download"
+                  @click="downloadHtml"
+                >
+                  Download HTML
+                </UButton>
+              </div>
+            </template>
+          </UCard>
+
+          <UCard v-if="result" class="text-left mt-4">
+            <template #header>
+              <div class="font-medium">n8n response</div>
+            </template>
+
+            <pre class="text-xs whitespace-pre-wrap break-words">{{ result }}</pre>
+          </UCard>
+        </div>
+      </div>
+
+      <div id="how-it-works" class="mx-auto max-w-4xl mt-16">
+        <div class="grid gap-4 md:grid-cols-3">
+          <UCard>
+            <template #header>
+              <div class="font-medium">1) Import</div>
+            </template>
+            <p class="text-gray-600">Fetch poems from poet.hu and prepare a project.</p>
+          </UCard>
+          <UCard>
+            <template #header>
+              <div class="font-medium">2) Review</div>
+            </template>
+            <p class="text-gray-600">Remove poems, adjust categories, reorder chapters.</p>
+          </UCard>
+          <UCard>
+            <template #header>
+              <div class="font-medium">3) Print</div>
+            </template>
+            <p class="text-gray-600">Generate PDF via PDFShift and send to the binder API.</p>
+          </UCard>
+        </div>
+      </div>
+    </div>
+  </UContainer>
 </template>

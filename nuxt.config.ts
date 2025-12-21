@@ -7,6 +7,9 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // server-only
     n8nWebhookUrl: process.env.N8N_WEBHOOK_URL || "",
+    n8nApiBaseUrl: process.env.N8N_API_BASE_URL || "",
+    n8nApiKey: process.env.N8N_API_KEY || "",
+    xApiKey: process.env.X_API_KEY || "",
     public: {
       appName: "mypoems",
     },
