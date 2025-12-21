@@ -162,9 +162,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <UContainer class="min-h-screen flex items-center">
-    <div class="w-full py-16">
-      <div class="mx-auto max-w-2xl text-center space-y-6">
+  <UPage>
+    <UPageBody>
+      <UContainer class="py-12">
+        <div class="mx-auto max-w-2xl text-center space-y-6">
         
         <!-- Stepper -->
         <div class="flex justify-center items-center gap-4 py-6">
@@ -334,6 +335,7 @@ onBeforeUnmount(() => {
           </UCard>
         </div>
       </div>
-    </div>
-  </UContainer>
+    </UContainer>
+  </UPageBody>
+</UPage>
 </template>
