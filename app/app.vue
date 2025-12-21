@@ -52,24 +52,21 @@ useSeoMeta({
       <NuxtPage />
     </UMain>
 
-    <USeparator icon="i-simple-icons-nuxtdotjs" />
+    <USeparator icon="i-lucide-book-open" />
 
     <UFooter>
       <template #left>
-        <p class="text-sm text-muted">
-          Built with Nuxt UI • © {{ new Date().getFullYear() }}
-        </p>
+        <div class="text-sm text-gray-500 dark:text-gray-400">
+          © {{ new Date().getFullYear() }} VersesKötetem. Minden jog fenntartva.
+        </div>
       </template>
 
       <template #right>
-        <UButton
-          to="https://github.com/nuxt-ui-templates/starter"
-          target="_blank"
-          icon="i-simple-icons-github"
-          aria-label="GitHub"
-          color="neutral"
-          variant="ghost"
-        />
+        <div class="flex gap-4 text-sm text-gray-500 dark:text-gray-400">
+          <NuxtLink to="/aszf" class="hover:text-primary-500 transition-colors">ÁSZF</NuxtLink>
+          <NuxtLink to="/adatkezeles" class="hover:text-primary-500 transition-colors">Adatkezelés</NuxtLink>
+          <NuxtLink to="/kapcsolat" class="hover:text-primary-500 transition-colors">Kapcsolat</NuxtLink>
+        </div>
       </template>
     </UFooter>
   </UApp>
