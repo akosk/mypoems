@@ -11,6 +11,7 @@ type N8nExecutionResponse = {
 
 type PoemsResult = {
   poems: Array<{ title?: string; poem?: string; url?: string }>;
+  chapters?: Array<any>;
   sourceNode?: string;
 };
 
@@ -35,6 +36,11 @@ const findPoems = (runData?: Record<string, Array<any>>): (PoemsResult & { bookH
           if (json.bookHtml || json.html) {
             result = result || { poems: [], sourceNode: nodeName };
             result.bookHtml = json.bookHtml || json.html;
+          }
+
+          if (Array.isArray(json.chapters)) {
+            result = result || { poems: [], sourceNode: nodeName };
+            result.chapters = json.chapters;
           }
 
           if (Array.isArray(json.poems)) {
@@ -121,6 +127,7 @@ export default defineEventHandler(async (event) => {
       status: res?.status || null,
       resumeUrl,
       poems: poemsResult?.poems || null,
+      chapters: poemsResult?.chapters || null,
       poemsSourceNode: poemsResult?.sourceNode || null,
       bookHtml: poemsResult?.bookHtml || null,
     };
