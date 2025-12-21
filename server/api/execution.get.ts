@@ -32,9 +32,9 @@ const findPoems = (runData?: Record<string, Array<any>>): (PoemsResult & { bookH
           if (!json) continue;
 
           // Check for bookHtml first (higher level output)
-          if (json.bookHtml) {
+          if (json.bookHtml || json.html) {
             result = result || { poems: [], sourceNode: nodeName };
-            result.bookHtml = json.bookHtml;
+            result.bookHtml = json.bookHtml || json.html;
           }
 
           if (Array.isArray(json.poems)) {
