@@ -3,7 +3,7 @@
     <UPageBody>
       <UContainer class="py-12 max-w-4xl">
         <h1 class="text-3xl font-bold mb-8">Általános Szerződési Feltételek (ÁSZF)</h1>
-        
+
         <div class="prose dark:prose-invert max-w-none">
           <p class="text-sm text-gray-500 mb-6">Hatályos: 2025. január 1-től visszavonásig</p>
 

@@ -12,16 +12,17 @@
         { label: 'Hogyan működik?', to: '#how-it-works', size: 'lg', color: 'neutral', variant: 'outline' }
       ]"
     >
-
-        <img
-          src="/assets/images/hero.png"
-          class="rounded-lg shadow-2xl ring ring-default"
-          alt="Verseskötet illusztráció"
-        />
-
+      <img
+        src="/assets/images/hero.png"
+        class="rounded-lg shadow-2xl ring ring-default"
+        alt="Verseskötet illusztráció"
+      >
     </UPageHero>
 
-    <UContainer id="how-it-works" class="py-24">
+    <UContainer
+      id="how-it-works"
+      class="py-24"
+    >
       <div class="text-center mb-16">
         <h2 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
           Így készül el a könyve
@@ -37,7 +38,10 @@
           <template #header>
             <div class="flex items-center gap-3">
               <div class="p-2 bg-primary-50 dark:bg-primary-900/50 rounded-lg text-primary-600">
-                <UIcon name="i-lucide-link" class="w-6 h-6" />
+                <UIcon
+                  name="i-lucide-link"
+                  class="w-6 h-6"
+                />
               </div>
               <h3 class="font-semibold text-lg">Megadás</h3>
             </div>
@@ -52,7 +56,10 @@
           <template #header>
             <div class="flex items-center gap-3">
               <div class="p-2 bg-primary-50 dark:bg-primary-900/50 rounded-lg text-primary-600">
-                <UIcon name="i-lucide-list-checks" class="w-6 h-6" />
+                <UIcon
+                  name="i-lucide-list-checks"
+                  class="w-6 h-6"
+                />
               </div>
               <h3 class="font-semibold text-lg">Válogatás</h3>
             </div>
@@ -67,7 +74,10 @@
           <template #header>
             <div class="flex items-center gap-3">
               <div class="p-2 bg-primary-50 dark:bg-primary-900/50 rounded-lg text-primary-600">
-                <UIcon name="i-lucide-wand-2" class="w-6 h-6" />
+                <UIcon
+                  name="i-lucide-wand-2"
+                  class="w-6 h-6"
+                />
               </div>
               <h3 class="font-semibold text-lg">Rendezés</h3>
             </div>
@@ -82,7 +92,10 @@
           <template #header>
             <div class="flex items-center gap-3">
               <div class="p-2 bg-primary-50 dark:bg-primary-900/50 rounded-lg text-primary-600">
-                <UIcon name="i-lucide-book-down" class="w-6 h-6" />
+                <UIcon
+                  name="i-lucide-book-down"
+                  class="w-6 h-6"
+                />
               </div>
               <h3 class="font-semibold text-lg">Letöltés</h3>
             </div>

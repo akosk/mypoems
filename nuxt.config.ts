@@ -4,6 +4,12 @@ export default defineNuxtConfig({
     '@nuxt/eslint',
     '@nuxt/ui'
   ],
+
+  devtools: {
+    enabled: true
+  },
+
+  css: ['~/assets/css/main.css'],
   runtimeConfig: {
     // server-only
     n8nWebhookUrl: process.env.N8N_WEBHOOK_URL || "",
@@ -14,12 +20,6 @@ export default defineNuxtConfig({
       appName: "mypoems",
     },
   },
-
-  devtools: {
-    enabled: true
-  },
-
-  css: ['~/assets/css/main.css'],
 
   routeRules: {
     '/': {prerender: true}
@@ -34,5 +34,5 @@ export default defineNuxtConfig({
         braceStyle: '1tbs'
       }
     }
-  }
+  },
 })

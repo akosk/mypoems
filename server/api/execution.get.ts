@@ -1,24 +1,26 @@
 type N8nExecutionResponse = {
-  id?: string;
-  status?: string;
+  id?: string
+  status?: string
   data?: {
     resultData?: {
-      runData?: Record<string, Array<any>>;
-    };
-  };
-  resumeUrl?: string;
+      runData?: Record<string, Array<any>>
+    }
+  }
+  resumeUrl?: string
 };
 
 type PoemsResult = {
-  poems: Array<{ title?: string; poem?: string; url?: string }>;
-  chapters?: Array<any>;
-  sourceNode?: string;
+  poems: Array<{ title?: string, poem?: string, url?: string }>
+  chapters?: Array<any>
+  sourceNode?: string
+  bookHtml?: string
+  bookPdf?: string // Base64 encoded PDF
 };
 
-const findPoems = (runData?: Record<string, Array<any>>): (PoemsResult & { bookHtml?: string }) | null => {
+const findPoems = (runData?: Record<string, Array<any>>): PoemsResult | null => {
   if (!runData) return null;
 
-  let result: (PoemsResult & { bookHtml?: string }) | null = null;
+  let result: PoemsResult | null = null;
 
   for (const [nodeName, runs] of Object.entries(runData)) {
     for (const run of runs || []) {
@@ -29,6 +31,17 @@ const findPoems = (runData?: Record<string, Array<any>>): (PoemsResult & { bookH
         if (!Array.isArray(output)) continue;
 
         for (const item of output) {
+          // Check for binary PDF data
+          if (item?.binary) {
+            for (const key of Object.keys(item.binary)) {
+              const bin = item.binary[key];
+              if (bin.mimeType === 'application/pdf' && bin.data) {
+                result = result || { poems: [], sourceNode: nodeName };
+                result.bookPdf = bin.data;
+              }
+            }
+          }
+
           const json = item?.json;
           if (!json) continue;
 
@@ -52,13 +65,13 @@ const findPoems = (runData?: Record<string, Array<any>>): (PoemsResult & { bookH
           if (!result?.poems?.length && (json.title || json.poem)) {
             result = result || { poems: [], sourceNode: nodeName };
             result.poems = output
-                .map((it) => it?.json)
-                .filter(Boolean)
-                .map((it) => ({
-                  title: it.title,
-                  poem: it.poem,
-                  url: it.url,
-                }));
+              .map(it => it?.json)
+              .filter(Boolean)
+              .map(it => ({
+                title: it.title,
+                poem: it.poem,
+                url: it.url,
+              }));
             result.sourceNode = nodeName;
           }
         }
@@ -130,6 +143,7 @@ export default defineEventHandler(async (event) => {
       chapters: poemsResult?.chapters || null,
       poemsSourceNode: poemsResult?.sourceNode || null,
       bookHtml: poemsResult?.bookHtml || null,
+      bookPdf: poemsResult?.bookPdf || null,
     };
   } catch (e: any) {
     throw createError({

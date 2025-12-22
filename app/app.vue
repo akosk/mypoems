@@ -63,9 +63,18 @@ useSeoMeta({
 
       <template #right>
         <div class="flex gap-4 text-sm text-gray-500 dark:text-gray-400">
-          <NuxtLink to="/aszf" class="hover:text-primary-500 transition-colors">ÁSZF</NuxtLink>
-          <NuxtLink to="/adatkezeles" class="hover:text-primary-500 transition-colors">Adatkezelés</NuxtLink>
-          <NuxtLink to="/kapcsolat" class="hover:text-primary-500 transition-colors">Kapcsolat</NuxtLink>
+          <NuxtLink
+            to="/aszf"
+            class="hover:text-primary-500 transition-colors"
+          >ÁSZF</NuxtLink>
+          <NuxtLink
+            to="/adatkezeles"
+            class="hover:text-primary-500 transition-colors"
+          >Adatkezelés</NuxtLink>
+          <NuxtLink
+            to="/kapcsolat"
+            class="hover:text-primary-500 transition-colors"
+          >Kapcsolat</NuxtLink>
         </div>
       </template>
     </UFooter>

@@ -30,21 +30,49 @@ async function sendMessage() {
         </p>
 
         <UCard>
-          <form @submit.prevent="sendMessage" class="space-y-6">
-            <UFormGroup label="Név" name="name">
-              <UInput v-model="state.name" placeholder="Az Ön neve" />
+          <form
+            class="space-y-6"
+            @submit.prevent="sendMessage"
+          >
+            <UFormGroup
+              label="Név"
+              name="name"
+            >
+              <UInput
+                v-model="state.name"
+                placeholder="Az Ön neve"
+              />
             </UFormGroup>
 
-            <UFormGroup label="E-mail cím" name="email">
-              <UInput v-model="state.email" type="email" placeholder="pelda@email.hu" />
+            <UFormGroup
+              label="E-mail cím"
+              name="email"
+            >
+              <UInput
+                v-model="state.email"
+                type="email"
+                placeholder="pelda@email.hu"
+              />
             </UFormGroup>
 
-            <UFormGroup label="Üzenet" name="message">
-              <UTextarea v-model="state.message" :rows="5" placeholder="Miben segíthetünk?" />
+            <UFormGroup
+              label="Üzenet"
+              name="message"
+            >
+              <UTextarea
+                v-model="state.message"
+                :rows="5"
+                placeholder="Miben segíthetünk?"
+              />
             </UFormGroup>
 
             <div class="flex justify-end">
-              <UButton type="submit" size="lg" :loading="loading" icon="i-lucide-send">
+              <UButton
+                type="submit"
+                size="lg"
+                :loading="loading"
+                icon="i-lucide-send"
+              >
                 Üzenet küldése
               </UButton>
             </div>
