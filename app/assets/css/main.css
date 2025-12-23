@@ -16,3 +16,12 @@
   --color-green-900: #0A5331;
   --color-green-950: #052E16;
 }
+
+button,
+[role="button"],
+a[href],
+input[type="button"],
+input[type="submit"],
+input[type="reset"] {
+  cursor: pointer;
+}
