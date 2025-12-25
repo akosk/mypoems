@@ -146,6 +146,7 @@ export default defineEventHandler(async (event) => {
       bookPdf: poemsResult?.bookPdf || null,
     };
   } catch (e: any) {
+    console.error('Error fetching n8n execution:', e);
     throw createError({
       statusCode: 502,
       statusMessage: 'Failed to fetch n8n execution.',

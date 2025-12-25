@@ -29,6 +29,7 @@
 
     return {ok: true, data: res};
   } catch (e: any) {
+    console.error('Error calling n8n webhook:', e);
     throw createError({
       statusCode: 502,
       statusMessage: 'Failed calling n8n webhook.',

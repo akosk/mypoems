@@ -18,6 +18,7 @@ export default defineEventHandler(async (event) => {
 
     return { ok: true, data: res };
   } catch (e: any) {
+    console.error('Error resuming n8n execution:', e);
     throw createError({
       statusCode: 502,
       statusMessage: 'Failed to resume n8n execution.',
