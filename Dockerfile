@@ -3,20 +3,17 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# Enable pnpm
-RUN corepack enable
-
 # Copy package files
-COPY package.json pnpm-lock.yaml ./
+COPY package.json package-lock.json ./
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN npm ci
 
 # Copy source code
 COPY . .
 
 # Build the application
-RUN pnpm run build
+RUN npm run build
 
 # Stage 2: Production
 FROM node:20-slim
