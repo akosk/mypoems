@@ -18,7 +18,7 @@ export default defineNuxtConfig({
     n8nApiKey: process.env.N8N_API_KEY || "",
     xApiKey: process.env.X_API_KEY || "",
     public: {
-      appName: "mypoems",
+      appName: "mypoems"
     },
   },
 

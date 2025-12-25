@@ -14,6 +14,17 @@ useHead({
 const title = 'VersesKötetem'
 const description = 'A production-ready starter template powered by Nuxt UI. Build beautiful, accessible, and performant applications in minutes, not hours.'
 
+const me = ref(null)
+const isAdmin = computed(() => Boolean(me.value?.isAdmin))
+
+onMounted(async () => {
+  try {
+    me.value = await $fetch('/api/me')
+  } catch (e) {
+    console.error('Failed to fetch user status', e)
+  }
+})
+
 useSeoMeta({
   title,
   description,
@@ -32,6 +43,17 @@ useSeoMeta({
         <NuxtLink to="/">
           <AppLogo class="w-auto h-6 shrink-0" />
         </NuxtLink>
+      </template>
+
+      <template #default>
+        <UButton
+          v-if="isAdmin"
+          to="/executions"
+          variant="ghost"
+          color="gray"
+        >
+          Executions
+        </UButton>
       </template>
 
       <template #right>

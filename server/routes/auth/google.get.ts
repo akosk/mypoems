@@ -1,11 +1,21 @@
 export default defineOAuthGoogleEventHandler({
   async onSuccess(event, { user, tokens }) {
+    const adminEmail = process.env.ADMIN_EMAIL || ''
+    console.log("adminEmail", adminEmail);
+    console.log("user.email", user.email);
+    const isAdmin = Boolean(
+      adminEmail
+      && user.email
+      && user.email.toLowerCase() === adminEmail.toLowerCase()
+    )
+
     await setUserSession(event, {
       user: {
         googleId: user.sub,
         email: user.email,
         name: user.name,
-        picture: user.picture
+        picture: user.picture,
+        isAdmin
       },
       loggedInAt: new Date()
     })

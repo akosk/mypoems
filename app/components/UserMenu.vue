@@ -9,7 +9,7 @@ async function logout() {
 
 <template>
   <div v-if="loggedIn" class="flex items-center gap-2">
-    <UDropdown
+    <UDropdownMenu
       :items="[
         [{
           label: user.name,
@@ -19,7 +19,7 @@ async function logout() {
         [{
           label: 'Kijelentkezés',
           icon: 'i-lucide-log-out',
-          click: logout
+          onSelect: logout
         }]
       ]"
       :ui="{ item: { disabled: 'cursor-text select-text' } }"
@@ -33,6 +33,7 @@ async function logout() {
           :src="user.picture"
           :alt="user.name"
           size="xs"
+          referrerpolicy="no-referrer"
         />
         <span class="hidden sm:inline-block">{{ user.name }}</span>
       </UButton>
@@ -45,7 +46,7 @@ async function logout() {
           </p>
         </div>
       </template>
-    </UDropdown>
+    </UDropdownMenu>
   </div>
   <div v-else>
     <UButton
