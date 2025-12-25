@@ -1,7 +1,7 @@
 ﻿export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig();
-  const webhookUrl = config.n8nWebhookUrl;
-  const xApiKey = config.xApiKey;
+  const webhookUrl = config.n8nWebhookUrl || process.env.N8N_WEBHOOK_URL;
+  const xApiKey = config.xApiKey || process.env.X_API_KEY;
 
   if (!webhookUrl) {
     throw createError({

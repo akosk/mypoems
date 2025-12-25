@@ -100,8 +100,8 @@ const findResumeUrl = (execution: N8nExecutionResponse): string | null => {
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig();
-  const baseUrl = config.n8nApiBaseUrl;
-  const apiKey = config.n8nApiKey;
+  const baseUrl = config.n8nApiBaseUrl || process.env.N8N_API_BASE_URL;
+  const apiKey = config.n8nApiKey || process.env.N8N_API_KEY;
 
   if (!baseUrl || !apiKey) {
     throw createError({
