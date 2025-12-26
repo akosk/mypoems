@@ -9,6 +9,21 @@ export default defineOAuthGoogleEventHandler({
       && user.email.toLowerCase() === adminEmail.toLowerCase()
     )
 
+    try {
+      const [existingUser] = await sql`
+        SELECT id FROM users WHERE email = ${user.email}
+      `
+
+      if (!existingUser) {
+        await sql`
+          INSERT INTO users (email, avatar_url, created_at)
+          VALUES (${user.email}, ${user.picture}, ${new Date()})
+        `
+      }
+    } catch (error) {
+      console.error('Database error during login:', error)
+    }
+
     await setUserSession(event, {
       user: {
         googleId: user.sub,

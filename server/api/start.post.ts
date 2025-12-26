@@ -13,16 +13,21 @@
   // You can accept a payload from the client later (e.g. poet.hu username)
   const body = await readBody(event).catch(() => ({}));
 
+  // Get user session to identify who started the workflow
+  const session = await getUserSession(event).catch(() => null);
+  const userEmail = session?.user?.email || 'anonymous';
+
   try {
     const res = await $fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        "X-API-Key": xApiKey
+        "X-API-Key": xApiKey || ''
       },
       body: {
         source: 'mypoems',
         ts: new Date().toISOString(),
+        startedBy: userEmail,
         ...body,
       },
     });
