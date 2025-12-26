@@ -27,6 +27,7 @@ const currentStepIndex = computed(() => {
 });
 
 const processingState = ref<'collecting' | 'categorizing' | 'generating' | null>(null);
+const initializing = ref(true);
 
 async function startWorkflow() {
   if (!poetId.value.trim()) {
@@ -197,13 +198,37 @@ onBeforeUnmount(() => {
   if (polling.value) clearInterval(polling.value);
   if (pdfUrl.value) URL.revokeObjectURL(pdfUrl.value);
 });
+
+onMounted(async () => {
+  try {
+    const res = await $fetch<{ execution: { executionId: string, status: string } | null }>('/api/last-execution')
+    if (res?.execution?.executionId) {
+      executionId.value = res.execution.executionId
+      await pollExecution()
+      if (status.value === 'running' || status.value === 'waiting') {
+        startPolling()
+      }
+    }
+  } catch (e) {
+    console.error("Failed to restore last execution", e)
+  } finally {
+    initializing.value = false
+  }
+})
 </script>
 
 <template>
   <UPage>
     <UPageBody>
       <UContainer class="py-12">
-        <div class="mx-auto max-w-2xl text-center space-y-6">
+        <div v-if="initializing" class="mx-auto max-w-2xl space-y-8">
+           <USkeleton class="h-8 w-full" />
+           <div class="space-y-4">
+             <USkeleton class="h-12 w-full" />
+             <USkeleton class="h-32 w-full" />
+           </div>
+        </div>
+        <div v-else class="mx-auto max-w-2xl text-center space-y-6">
           <WorkflowStepper
             :steps="steps"
             :current-step-index="currentStepIndex"

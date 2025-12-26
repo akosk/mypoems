@@ -32,6 +32,38 @@
       },
     });
 
+    // Store execution in DB
+    try {
+      const executionId = res?.data?.executionId || res?.executionId
+      
+      let userId = null
+      if (session?.user?.email) {
+        const [user] = await sql`SELECT id FROM users WHERE email = ${session.user.email}`
+        userId = user?.id || null
+      }
+
+      if (executionId) {
+        await sql`
+          INSERT INTO executions (
+            user_id, 
+            n8n_execution_id, 
+            status, 
+            started_at, 
+            payload
+          ) VALUES (
+            ${userId}, 
+            ${executionId}, 
+            'running', 
+            ${new Date()}, 
+            ${body}
+          )
+        `
+      }
+    } catch (dbError) {
+      console.error('Failed to save execution to DB:', dbError)
+      // Do not fail the request if DB logging fails
+    }
+
     return {ok: true, data: res};
   } catch (e: any) {
     console.error('Error calling n8n webhook:', e);

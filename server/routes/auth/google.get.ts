@@ -11,14 +11,23 @@ export default defineOAuthGoogleEventHandler({
 
     try {
       const [existingUser] = await sql`
-        SELECT id FROM users WHERE email = ${user.email}
+        SELECT id, first_name, last_name FROM users WHERE email = ${user.email}
       `
 
       if (!existingUser) {
         await sql`
-          INSERT INTO users (email, avatar_url, created_at)
-          VALUES (${user.email}, ${user.picture}, ${new Date()})
+          INSERT INTO users (email, avatar_url, first_name, last_name, created_at)
+          VALUES (${user.email}, ${user.picture}, ${user.given_name}, ${user.family_name}, ${new Date()})
         `
+      } else {
+        // Update names if missing or changed
+        if (user.given_name !== existingUser.first_name || user.family_name !== existingUser.last_name) {
+           await sql`
+            UPDATE users 
+            SET first_name = ${user.given_name}, last_name = ${user.family_name}, avatar_url = ${user.picture}
+            WHERE email = ${user.email}
+          `
+        }
       }
     } catch (error) {
       console.error('Database error during login:', error)
