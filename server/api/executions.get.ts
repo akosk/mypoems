@@ -43,7 +43,8 @@ export default defineEventHandler(async (event) => {
   }
 
   const query = getQuery(event)
-  const workflowId = String(query.workflowId || config.n8nWorkflowId || '').trim()
+  // Check runtime config AND direct process.env for runtime injection (Railway)
+  const workflowId = String(query.workflowId || config.n8nWorkflowId || process.env.N8N_WORKFLOW_ID || '').trim()
   const limit = Math.min(Math.max(Number(query.limit || 20), 1), 100)
 
   if (!workflowId) {
