@@ -1,3 +1,5 @@
+import { sql } from '../utils/db'
+
 type N8nExecutionResponse = {
   id?: string
   status?: string
@@ -37,7 +39,13 @@ const findPoems = (runData?: Record<string, Array<any>>): PoemsResult | null => 
               const bin = item.binary[key];
               if (bin.mimeType === 'application/pdf' && bin.data) {
                 result = result || { poems: [], sourceNode: nodeName };
-                result.bookPdf = bin.data;
+                
+                // Prioritize TOC Service or overwrite if not yet set
+                const isTOC = nodeName.includes('TOC Service');
+                if (!result.bookPdf || isTOC) {
+                    result.bookPdf = bin.data;
+                    result.sourceNode = nodeName;
+                }
               }
             }
           }
@@ -89,9 +97,10 @@ const findResumeUrl = (execution: N8nExecutionResponse): string | null => {
 
   for (const runs of Object.values(runData)) {
     for (const run of runs || []) {
-      if (run?.executionData?.resumeUrl) {
-        return run.executionData.resumeUrl;
-      }
+      if (run?.executionData?.resumeUrl) return run.executionData.resumeUrl;
+      if (run?.executionData?.waitUrl) return run.executionData.waitUrl;
+      // @ts-ignore
+      if (run?.data?.wait?.url) return run.data.wait.url;
     }
   }
 
@@ -135,10 +144,31 @@ export default defineEventHandler(async (event) => {
     const poemsResult = findPoems(res?.data?.resultData?.runData);
     const resumeUrl = findResumeUrl(res);
 
+    let user = null
+    try {
+      const [dbExec] = await sql`
+        SELECT u.email, u.avatar_url, u.first_name, u.last_name
+        FROM executions e
+        JOIN users u ON e.user_id = u.id
+        WHERE e.n8n_execution_id = ${executionId}
+      `
+      if (dbExec) {
+        user = {
+          email: dbExec.email,
+          avatar: dbExec.avatar_url,
+          firstName: dbExec.first_name,
+          lastName: dbExec.last_name
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch user for execution', e)
+    }
+
     return {
       ok: true,
       status: res?.status || null,
       resumeUrl,
+      user,
       poems: poemsResult?.poems || null,
       chapters: poemsResult?.chapters || null,
       poemsSourceNode: poemsResult?.sourceNode || null,

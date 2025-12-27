@@ -194,6 +194,36 @@ async function resumeExecution(decision: string) {
   }
 }
 
+async function cancelWorkflow() {
+  if (!executionId.value) return;
+  
+  if (!confirm('Biztosan megszakítod a folyamatot?')) return;
+
+  loading.value = true;
+  try {
+    await $fetch('/api/cancel', {
+      method: 'POST',
+      body: { executionId: executionId.value }
+    });
+    
+    // Reset state
+    executionId.value = null;
+    resumeUrl.value = null;
+    status.value = null;
+    processingState.value = null;
+    poems.value = [];
+    chapters.value = [];
+    bookHtml.value = null;
+    bookPdf.value = null;
+    if (polling.value) clearInterval(polling.value);
+    
+  } catch (e: any) {
+    error.value = "Nem sikerült megszakítani a folyamatot.";
+  } finally {
+    loading.value = false;
+  }
+}
+
 onBeforeUnmount(() => {
   if (polling.value) clearInterval(polling.value);
   if (pdfUrl.value) URL.revokeObjectURL(pdfUrl.value);
@@ -201,9 +231,13 @@ onBeforeUnmount(() => {
 
 onMounted(async () => {
   try {
-    const res = await $fetch<{ execution: { executionId: string, status: string } | null }>('/api/last-execution')
-    if (res?.execution?.executionId) {
-      executionId.value = res.execution.executionId
+    const res = await $fetch<{ execution: { executionId: string, status: string, resumeUrl?: string } | null }>('/api/last-execution')
+    const exec = res?.execution
+    if (exec?.executionId && exec.status?.toLowerCase() !== 'canceled') {
+      executionId.value = exec.executionId
+      if (exec.resumeUrl) {
+        resumeUrl.value = exec.resumeUrl
+      }
       await pollExecution()
       if (status.value === 'running' || status.value === 'waiting') {
         startPolling()
@@ -233,6 +267,18 @@ onMounted(async () => {
             :steps="steps"
             :current-step-index="currentStepIndex"
           />
+          
+          <div v-if="executionId" class="flex justify-center">
+            <UButton
+              color="red"
+              variant="soft"
+              size="sm"
+              icon="i-lucide-x"
+              @click="cancelWorkflow"
+            >
+              Folyamat megszakítása / Reset
+            </UButton>
+          </div>
 
           <WorkflowLoading :processing-state="processingState" />
 

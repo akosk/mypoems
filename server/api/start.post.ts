@@ -35,6 +35,7 @@
     // Store execution in DB
     try {
       const executionId = res?.data?.executionId || res?.executionId
+      const resumeUrl = res?.data?.resumeUrl || res?.resumeUrl
       
       let userId = null
       if (session?.user?.email) {
@@ -49,13 +50,15 @@
             n8n_execution_id, 
             status, 
             started_at, 
-            payload
+            payload,
+            resume_url
           ) VALUES (
             ${userId}, 
             ${executionId}, 
             'running', 
             ${new Date()}, 
-            ${body}
+            ${body},
+            ${resumeUrl}
           )
         `
       }

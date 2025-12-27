@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
     if (!user) return { execution: null }
 
     const [execution] = await sql`
-      SELECT n8n_execution_id as "executionId", status, started_at
+      SELECT n8n_execution_id as "executionId", status, started_at, resume_url as "resumeUrl"
       FROM executions
       WHERE user_id = ${user.id}
       ORDER BY started_at DESC
