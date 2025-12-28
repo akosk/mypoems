@@ -5,6 +5,7 @@ const error = ref<string | null>(null);
 const executionId = ref<string | null>(null);
 const resumeUrl = ref<string | null>(null);
 const status = ref<string | null>(null);
+const paymentStatus = ref<string>('pending');
 const poems = ref<Array<{ title?: string, poem?: string, url?: string }>>([]);
 const chapters = ref<Array<{ name: string, poems: any[] }>>([]);
 const bookHtml = ref<string | null>(null);
@@ -28,6 +29,7 @@ const currentStepIndex = computed(() => {
 
 const processingState = ref<'collecting' | 'categorizing' | 'generating' | null>(null);
 const initializing = ref(true);
+const isBuying = ref(false);
 
 async function startWorkflow() {
   if (!poetId.value.trim()) {
@@ -42,6 +44,7 @@ async function startWorkflow() {
   executionId.value = null;
   resumeUrl.value = null;
   status.value = null;
+  paymentStatus.value = 'pending';
   poems.value = [];
   chapters.value = [];
   bookHtml.value = null;
@@ -84,6 +87,7 @@ async function pollExecution() {
     });
 
     status.value = res?.status || status.value;
+    if (res?.paymentStatus) paymentStatus.value = res.paymentStatus;
     if (res?.resumeUrl) resumeUrl.value = res.resumeUrl;
     if (Array.isArray(res?.poems)) poems.value = res.poems;
     if (Array.isArray(res?.chapters)) chapters.value = res.chapters;
@@ -100,6 +104,24 @@ async function pollExecution() {
       e?.statusMessage ||
       e?.message ||
       "Ismeretlen hiba történt";
+  }
+}
+
+async function buyBook() {
+  if (!executionId.value) return;
+  isBuying.value = true;
+  try {
+    const res = await $fetch<{ url: string }>('/api/checkout', {
+      method: 'POST',
+      body: { executionId: executionId.value }
+    });
+    if (res.url) {
+      window.location.href = res.url;
+    }
+  } catch (e: any) {
+    error.value = e?.data?.statusMessage || "Sikertelen fizetés indítás";
+  } finally {
+    isBuying.value = false;
   }
 }
 
@@ -316,7 +338,10 @@ onMounted(async () => {
               v-if="currentStepIndex === 3 && !processingState"
               :book-pdf="bookPdf"
               :pdf-url="pdfUrl"
+              :payment-status="paymentStatus"
+              :is-buying="isBuying"
               @download="downloadPdf"
+              @buy="buyBook"
             />
           </div>
         </div>

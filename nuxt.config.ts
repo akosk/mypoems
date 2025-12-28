@@ -17,6 +17,8 @@ export default defineNuxtConfig({
     n8nApiBaseUrl: process.env.N8N_API_BASE_URL || "",
     n8nApiKey: process.env.N8N_API_KEY || "",
     n8nWorkflowId: process.env.N8N_WORKFLOW_ID || "",
+    stripeSecretKey: process.env.STRIPE_SECRET_KEY || "",
+    stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || "",
     xApiKey: process.env.X_API_KEY || "",
     public: {
       appName: "mypoems"

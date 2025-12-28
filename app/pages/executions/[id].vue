@@ -30,6 +30,25 @@ const formatDate = (value?: string) => {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
 }
 
+const isBuying = ref(false)
+
+async function buyPdf() {
+  isBuying.value = true
+  try {
+    const res = await $fetch<{ url: string }>('/api/checkout', {
+      method: 'POST',
+      body: { executionId }
+    })
+    if (res.url) {
+      window.location.href = res.url
+    }
+  } catch (e: any) {
+    alert(e?.data?.statusMessage || "Payment init failed")
+  } finally {
+    isBuying.value = false
+  }
+}
+
 function downloadPdf(base64Data: string) {
   try {
     const byteCharacters = atob(base64Data);
@@ -135,7 +154,7 @@ const poemChapterMap = computed(() => {
             </h3>
             <div class="flex items-center gap-2">
               <UButton
-                v-if="execution.bookPdf"
+                v-if="execution.paymentStatus === 'paid' && execution.bookPdf"
                 icon="i-lucide-download"
                 size="xs"
                 color="primary"
@@ -143,6 +162,17 @@ const poemChapterMap = computed(() => {
                 @click="downloadPdf(execution.bookPdf)"
               >
                 Download PDF
+              </UButton>
+              <UButton
+                v-else-if="execution.bookPdf"
+                icon="i-lucide-shopping-cart"
+                size="xs"
+                color="primary"
+                variant="solid"
+                :loading="isBuying"
+                @click="buyPdf"
+              >
+                Buy PDF (3990 HUF)
               </UButton>
             </div>
           </div>

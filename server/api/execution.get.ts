@@ -145,14 +145,17 @@ export default defineEventHandler(async (event) => {
     const resumeUrl = findResumeUrl(res);
 
     let user = null
+    let paymentStatus = 'pending' // default
+
     try {
       const [dbExec] = await sql`
-        SELECT u.email, u.avatar_url, u.first_name, u.last_name
+        SELECT u.email, u.avatar_url, u.first_name, u.last_name, e.payment_status
         FROM executions e
         JOIN users u ON e.user_id = u.id
         WHERE e.n8n_execution_id = ${executionId}
       `
       if (dbExec) {
+        paymentStatus = dbExec.payment_status || 'pending'
         user = {
           email: dbExec.email,
           avatar: dbExec.avatar_url,
@@ -167,6 +170,7 @@ export default defineEventHandler(async (event) => {
     return {
       ok: true,
       status: res?.status || null,
+      paymentStatus,
       resumeUrl,
       user,
       poems: poemsResult?.poems || null,
