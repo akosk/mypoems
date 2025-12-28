@@ -3,8 +3,14 @@ import { sql } from '../../utils/db'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
-  const stripe = new Stripe(config.stripeSecretKey)
-  const webhookSecret = config.stripeWebhookSecret
+  const secretKey = config.stripeSecretKey || process.env.STRIPE_SECRET_KEY
+  const webhookSecret = config.stripeWebhookSecret || process.env.STRIPE_WEBHOOK_SECRET
+  
+  if (!secretKey) {
+    throw createError({ statusCode: 500, statusMessage: 'Stripe key missing' })
+  }
+  
+  const stripe = new Stripe(secretKey)
   
   if (!webhookSecret) {
     throw createError({ statusCode: 500, statusMessage: 'Webhook secret missing' })

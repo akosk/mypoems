@@ -3,15 +3,13 @@ import { sql } from '../utils/db'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
-  console.log("config.stripeSecretKey", config?.stripeSecretKey?.substring(0, 4) + '****');
-  console.log("config.stripeSecretKey process", process.env.STRIPE_SECRET_KEY?.substring(0, 4) + '****');
-
-
-  if (!config.stripeSecretKey) {
+  const secretKey = config.stripeSecretKey || process.env.STRIPE_SECRET_KEY
+  
+  if (!secretKey) {
     throw createError({ statusCode: 500, statusMessage: 'Stripe key missing' })
   }
-
-  const stripe = new Stripe(config.stripeSecretKey)
+  
+  const stripe = new Stripe(secretKey)
   const session = await getUserSession(event)
 
   if (!session?.user?.email) {
