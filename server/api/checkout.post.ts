@@ -4,6 +4,7 @@ import { sql } from '../utils/db'
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   console.log("config.stripeSecretKey", config?.stripeSecretKey?.substring(0, 4) + '****');
+  console.log("config.stripeSecretKey process", process.env.STRIPE_SECRET_KEY?.substring(0, 4) + '****');
 
 
   if (!config.stripeSecretKey) {
