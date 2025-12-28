@@ -3,13 +3,16 @@ import { sql } from '../utils/db'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
+  console.log("config.stripeSecretKey", config?.stripeSecretKey?.substring(0, 4) + '****');
+
+
   if (!config.stripeSecretKey) {
     throw createError({ statusCode: 500, statusMessage: 'Stripe key missing' })
   }
-  
+
   const stripe = new Stripe(config.stripeSecretKey)
   const session = await getUserSession(event)
-  
+
   if (!session?.user?.email) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   }
@@ -24,7 +27,7 @@ export default defineEventHandler(async (event) => {
   // Check execution
   const [execution] = await sql`
     SELECT id, payment_status, n8n_execution_id
-    FROM executions 
+    FROM executions
     WHERE n8n_execution_id = ${executionId}
   `
 
@@ -66,7 +69,7 @@ export default defineEventHandler(async (event) => {
 
   // Update DB
   await sql`
-    UPDATE executions 
+    UPDATE executions
     SET stripe_session_id = ${checkoutSession.id}
     WHERE n8n_execution_id = ${executionId}
   `
