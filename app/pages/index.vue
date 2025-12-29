@@ -1,4 +1,39 @@
 <script setup lang="ts">
+const { data } = await useFetch('/api/last-execution')
+
+const activeExecution = computed(() => {
+  const exec = data.value?.execution
+  if (exec && ['running', 'waiting'].includes((exec as any).status)) {
+    return exec
+  }
+  return null
+})
+
+const heroLinks = computed(() => {
+  if (activeExecution.value) {
+    return [
+      { 
+        label: 'Könyv készítésének folytatása', 
+        to: '/workflow', 
+        size: 'lg', 
+        icon: 'i-lucide-play',
+        color: 'warning'
+      } as const,
+      { 
+        label: 'Új könyv készítése', 
+        to: '/workflow/new', 
+        size: 'lg', 
+        icon: 'i-lucide-plus',
+        color: 'primary'
+      } as const
+    ]
+  } else {
+    return [
+      { label: 'Könyv készítése', to: '/workflow', size: 'lg', icon: 'i-lucide-book-plus' } as const,
+      { label: 'Hogyan működik?', to: '#how-it-works', size: 'lg', color: 'neutral', variant: 'outline' } as const
+    ]
+  }
+})
 </script>
 
 <template>
@@ -7,10 +42,7 @@
       title="Alkosson gyönyörű verseskötetet saját verseiből."
       description="Importáljon a poet.hu-ról, rendezze fejezetekbe, generáljon PDF-et és készítse el könyvét egyetlen folyamatban."
       orientation="horizontal"
-      :links="[
-        { label: 'Könyv készítése', to: '/workflow', size: 'lg', icon: 'i-lucide-book-plus' },
-        { label: 'Hogyan működik?', to: '#how-it-works', size: 'lg', color: 'neutral', variant: 'outline' }
-      ]"
+      :links="heroLinks"
     >
       <img
         src="/assets/images/hero.png"

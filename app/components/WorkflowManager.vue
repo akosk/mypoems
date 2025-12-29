@@ -1,4 +1,9 @@
 <script setup lang="ts">
+const props = defineProps<{
+  initialExecutionId?: string | null;
+  forceNew?: boolean;
+}>();
+
 const loading = ref(false);
 const result = ref<any>(null);
 const error = ref<string | null>(null);
@@ -253,20 +258,37 @@ onBeforeUnmount(() => {
 
 onMounted(async () => {
   try {
-    const res = await $fetch<{ execution: { executionId: string, status: string, resumeUrl?: string } | null }>('/api/last-execution')
-    const exec = res?.execution
-    if (exec?.executionId && exec.status?.toLowerCase() !== 'canceled') {
-      executionId.value = exec.executionId
-      if (exec.resumeUrl) {
-        resumeUrl.value = exec.resumeUrl
-      }
-      await pollExecution()
+    if (props.forceNew) {
+      executionId.value = null; // Explicitly reset just in case
+      poems.value = [];
+      chapters.value = [];
+      bookPdf.value = null;
+      initializing.value = false;
+      return;
+    }
+
+    if (props.initialExecutionId) {
+      executionId.value = props.initialExecutionId;
+      await pollExecution();
       if (status.value === 'running' || status.value === 'waiting') {
-        startPolling()
+        startPolling();
+      }
+    } else {
+      const res = await $fetch<{ execution: { executionId: string, status: string, resumeUrl?: string } | null }>('/api/last-execution')
+      const exec = res?.execution
+      if (exec?.executionId && exec.status?.toLowerCase() !== 'canceled') {
+        executionId.value = exec.executionId
+        if (exec.resumeUrl) {
+          resumeUrl.value = exec.resumeUrl
+        }
+        await pollExecution()
+        if (status.value === 'running' || status.value === 'waiting') {
+          startPolling()
+        }
       }
     }
   } catch (e) {
-    console.error("Failed to restore last execution", e)
+    console.error("Failed to restore execution", e)
   } finally {
     initializing.value = false
   }
@@ -274,78 +296,74 @@ onMounted(async () => {
 </script>
 
 <template>
-  <UPage>
-    <UPageBody>
-      <UContainer class="py-12">
-        <div v-if="initializing" class="mx-auto max-w-2xl space-y-8">
-           <USkeleton class="h-8 w-full" />
-           <div class="space-y-4">
-             <USkeleton class="h-12 w-full" />
-             <USkeleton class="h-32 w-full" />
-           </div>
-        </div>
-        <div v-else class="mx-auto max-w-2xl text-center space-y-6">
-          <WorkflowStepper
-            :steps="steps"
-            :current-step-index="currentStepIndex"
-          />
-          
-          <div v-if="executionId" class="flex justify-center">
-            <UButton
-              color="red"
-              variant="soft"
-              size="sm"
-              icon="i-lucide-x"
-              @click="cancelWorkflow"
-            >
-              Folyamat megszakítása / Reset
-            </UButton>
-          </div>
+  <UContainer class="py-12">
+    <div v-if="initializing" class="mx-auto max-w-2xl space-y-8">
+       <USkeleton class="h-8 w-full" />
+       <div class="space-y-4">
+         <USkeleton class="h-12 w-full" />
+         <USkeleton class="h-32 w-full" />
+       </div>
+    </div>
+    <div v-else class="mx-auto max-w-2xl text-center space-y-6">
+      <WorkflowStepper
+        :steps="steps"
+        :current-step-index="currentStepIndex"
+      />
+      
+      <div v-if="executionId" class="flex justify-center">
+        <UButton
+          color="error"
+          variant="soft"
+          size="sm"
+          icon="i-lucide-x"
+          @click="cancelWorkflow"
+        >
+          Folyamat megszakítása / Reset
+        </UButton>
+      </div>
 
-          <WorkflowLoading :processing-state="processingState" />
+      <WorkflowLoading :processing-state="processingState" />
 
-          <WorkflowStepImport
-            v-if="currentStepIndex === 0 && !processingState"
-            v-model="poetId"
-            :loading="loading"
-            @start="startWorkflow"
-          />
+      <WorkflowStepImport
+        v-if="currentStepIndex === 0 && !processingState"
+        v-model="poetId"
+        :loading="loading"
+        @start="startWorkflow"
+      />
 
-          <div class="pt-6">
-            <UAlert
-              v-if="error"
-              color="red"
-              variant="soft"
-              title="A kérés sikertelen"
-              :description="error"
-            />
+      <div class="pt-6">
+        <UAlert
+          v-if="error"
+          color="error"
+          variant="soft"
+          title="A kérés sikertelen"
+          :description="error"
+        />
 
-            <WorkflowStepReviewPoems
-              v-if="currentStepIndex === 1 && !processingState"
-              :poems="poems"
-              :status="status"
-              @continue="resumeExecution('continue')"
-              @toggle-poem="togglePoem"
-            />
+        <WorkflowStepReviewPoems
+          v-if="currentStepIndex === 1 && !processingState"
+          :poems="poems"
+          :status="status"
+          @continue="resumeExecution('continue')"
+          @toggle-poem="togglePoem"
+        />
 
-            <WorkflowStepReviewChapters
-              v-if="currentStepIndex === 2 && !processingState"
-              v-model:chapters="chapters"
-              @continue="resumeExecution('continue')"
-            />
+        <WorkflowStepReviewChapters
+          v-if="currentStepIndex === 2 && !processingState"
+          v-model:chapters="chapters"
+          @continue="resumeExecution('continue')"
+        />
 
-            <WorkflowStepDownload
-              v-if="currentStepIndex === 3 && !processingState"
-              :book-pdf="bookPdf"
-              :pdf-url="pdfUrl"
-              :payment-status="paymentStatus"
-              :is-buying="isBuying"
-              @download="downloadPdf"
-              @buy="buyBook"
-            />
-          </div>
-        </div>
-      </UContainer>
-    </UPageBody>
-  </UPage>
+        <WorkflowStepDownload
+          v-if="currentStepIndex === 3 && !processingState"
+          :book-pdf="bookPdf"
+          :pdf-url="pdfUrl"
+          :payment-status="paymentStatus"
+          :is-buying="isBuying"
+          @download="downloadPdf"
+          @buy="buyBook"
+        />
+      </div>
+    </div>
+  </UContainer>
 </template>

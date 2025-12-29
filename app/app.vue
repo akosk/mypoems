@@ -47,6 +47,14 @@ useSeoMeta({
 
       <template #default>
         <UButton
+          v-if="me?.loggedIn"
+          to="/user-workflows"
+          variant="ghost"
+          color="gray"
+        >
+          Könyveim
+        </UButton>
+        <UButton
           v-if="isAdmin"
           to="/executions"
           variant="ghost"
