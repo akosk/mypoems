@@ -15,8 +15,14 @@ const poems = ref<Array<{ title?: string, poem?: string, url?: string }>>([]);
 const chapters = ref<Array<{ name: string, poems: any[] }>>([]);
 const bookHtml = ref<string | null>(null);
 const bookPdf = ref<string | null>(null);
+const watermarkedPdf = ref<string | null>(null);
 const polling = ref<ReturnType<typeof setInterval> | null>(null);
 const poetId = ref("Kiszely_Jozsef_Laszlone");
+
+const displayPdf = computed(() => {
+  if (paymentStatus.value === 'paid') return bookPdf.value;
+  return watermarkedPdf.value;
+});
 
 const steps = [
   { label: 'Importálás', value: 'import' },
@@ -26,7 +32,7 @@ const steps = [
 ];
 
 const currentStepIndex = computed(() => {
-  if (bookPdf.value) return 3; // Letöltés
+  if (displayPdf.value) return 3; // Letöltés
   if (chapters.value.length > 0) return 2; // Fejezetek áttekintése
   if (poems.value.length > 0) return 1; // Versek ellenőrzése
   return 0; // Importálás
@@ -54,6 +60,7 @@ async function startWorkflow() {
   chapters.value = [];
   bookHtml.value = null;
   bookPdf.value = null;
+  watermarkedPdf.value = null;
 
   try {
     const res = await $fetch("/api/start", {
@@ -98,11 +105,12 @@ async function pollExecution() {
     if (Array.isArray(res?.chapters)) chapters.value = res.chapters;
     if (res?.bookHtml) bookHtml.value = res.bookHtml;
     if (res?.bookPdf) bookPdf.value = res.bookPdf;
+    if (res?.watermarkedPdf) watermarkedPdf.value = res.watermarkedPdf;
 
     // Clear processing state when data arrives
     if (processingState.value === 'collecting' && poems.value.length > 0) processingState.value = null;
     if (processingState.value === 'categorizing' && chapters.value.length > 0) processingState.value = null;
-    if (processingState.value === 'generating' && bookPdf.value) processingState.value = null;
+    if (processingState.value === 'generating' && displayPdf.value) processingState.value = null;
   } catch (e: any) {
     error.value =
       e?.data?.statusMessage ||
@@ -150,7 +158,7 @@ function startPolling() {
 
 const pdfUrl = ref<string | null>(null);
 
-watch(bookPdf, (newVal) => {
+watch(displayPdf, (newVal) => {
   if (pdfUrl.value) URL.revokeObjectURL(pdfUrl.value);
   if (newVal) {
     try {
@@ -233,15 +241,8 @@ async function cancelWorkflow() {
       body: { executionId: executionId.value }
     });
     
-    // Reset state
-    executionId.value = null;
-    resumeUrl.value = null;
-    status.value = null;
-    processingState.value = null;
-    poems.value = [];
-    chapters.value = [];
-    bookHtml.value = null;
-    bookPdf.value = null;
+    // Mark as canceled but keep state to show feedback
+    status.value = 'canceled';
     if (polling.value) clearInterval(polling.value);
     
   } catch (e: any) {
@@ -249,6 +250,20 @@ async function cancelWorkflow() {
   } finally {
     loading.value = false;
   }
+}
+
+function resetWorkflow() {
+  executionId.value = null;
+  resumeUrl.value = null;
+  status.value = null;
+  processingState.value = null;
+  poems.value = [];
+  chapters.value = [];
+  bookHtml.value = null;
+  bookPdf.value = null;
+  watermarkedPdf.value = null;
+  error.value = null;
+  if (polling.value) clearInterval(polling.value);
 }
 
 onBeforeUnmount(() => {
@@ -259,10 +274,7 @@ onBeforeUnmount(() => {
 onMounted(async () => {
   try {
     if (props.forceNew) {
-      executionId.value = null; // Explicitly reset just in case
-      poems.value = [];
-      chapters.value = [];
-      bookPdf.value = null;
+      resetWorkflow();
       initializing.value = false;
       return;
     }
@@ -276,7 +288,8 @@ onMounted(async () => {
     } else {
       const res = await $fetch<{ execution: { executionId: string, status: string, resumeUrl?: string } | null }>('/api/last-execution')
       const exec = res?.execution
-      if (exec?.executionId && exec.status?.toLowerCase() !== 'canceled') {
+      // Allow restoring canceled executions to show the state
+      if (exec?.executionId) {
         executionId.value = exec.executionId
         if (exec.resumeUrl) {
           resumeUrl.value = exec.resumeUrl
@@ -310,28 +323,37 @@ onMounted(async () => {
         :current-step-index="currentStepIndex"
       />
       
-      <div v-if="executionId" class="flex justify-center">
-        <UButton
-          color="error"
-          variant="soft"
-          size="sm"
-          icon="i-lucide-x"
-          @click="cancelWorkflow"
-        >
-          Folyamat megszakítása / Reset
-        </UButton>
-      </div>
-
       <WorkflowLoading :processing-state="processingState" />
 
       <WorkflowStepImport
-        v-if="currentStepIndex === 0 && !processingState"
+        v-if="currentStepIndex === 0 && !processingState && !executionId"
         v-model="poetId"
         :loading="loading"
         @start="startWorkflow"
       />
 
       <div class="pt-6">
+        <UAlert
+          v-if="status === 'canceled'"
+          color="warning"
+          variant="soft"
+          icon="i-lucide-ban"
+          title="Folyamat megszakítva"
+          description="A könyvgenerálási folyamat meg lett szakítva."
+          class="mb-6"
+        >
+          <template #footer>
+            <UButton
+              color="primary"
+              variant="solid"
+              size="sm"
+              @click="resetWorkflow"
+            >
+              Új könyv kezdése
+            </UButton>
+          </template>
+        </UAlert>
+
         <UAlert
           v-if="error"
           color="error"
@@ -341,7 +363,7 @@ onMounted(async () => {
         />
 
         <WorkflowStepReviewPoems
-          v-if="currentStepIndex === 1 && !processingState"
+          v-if="currentStepIndex === 1 && !processingState && status !== 'canceled'"
           :poems="poems"
           :status="status"
           @continue="resumeExecution('continue')"
@@ -349,20 +371,32 @@ onMounted(async () => {
         />
 
         <WorkflowStepReviewChapters
-          v-if="currentStepIndex === 2 && !processingState"
+          v-if="currentStepIndex === 2 && !processingState && status !== 'canceled'"
           v-model:chapters="chapters"
           @continue="resumeExecution('continue')"
         />
 
         <WorkflowStepDownload
-          v-if="currentStepIndex === 3 && !processingState"
-          :book-pdf="bookPdf"
+          v-if="currentStepIndex === 3 && !processingState && status !== 'canceled'"
+          :book-pdf="displayPdf"
           :pdf-url="pdfUrl"
           :payment-status="paymentStatus"
           :is-buying="isBuying"
           @download="downloadPdf"
           @buy="buyBook"
         />
+      </div>
+
+      <div v-if="executionId && paymentStatus !== 'paid' && status !== 'canceled'" class="pt-12 flex justify-center opacity-50 hover:opacity-100 transition-opacity">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          icon="i-lucide-trash-2"
+          @click="cancelWorkflow"
+        >
+          Folyamat megszakítása / Reset
+        </UButton>
       </div>
     </div>
   </UContainer>

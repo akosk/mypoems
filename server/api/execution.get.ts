@@ -17,6 +17,7 @@ type PoemsResult = {
   sourceNode?: string
   bookHtml?: string
   bookPdf?: string // Base64 encoded PDF
+  watermarkedPdf?: string // Base64 encoded PDF
 };
 
 const findPoems = (runData?: Record<string, Array<any>>): PoemsResult | null => {
@@ -40,9 +41,12 @@ const findPoems = (runData?: Record<string, Array<any>>): PoemsResult | null => 
               if (bin.mimeType === 'application/pdf' && bin.data) {
                 result = result || { poems: [], sourceNode: nodeName };
                 
-                // Prioritize TOC Service or overwrite if not yet set
+                const isWatermark = nodeName.includes('Watermark');
                 const isTOC = nodeName.includes('TOC Service');
-                if (!result.bookPdf || isTOC) {
+
+                if (isWatermark) {
+                  result.watermarkedPdf = bin.data;
+                } else if (isTOC || !result.bookPdf) {
                     result.bookPdf = bin.data;
                     result.sourceNode = nodeName;
                 }
@@ -178,6 +182,7 @@ export default defineEventHandler(async (event) => {
       poemsSourceNode: poemsResult?.sourceNode || null,
       bookHtml: poemsResult?.bookHtml || null,
       bookPdf: poemsResult?.bookPdf || null,
+      watermarkedPdf: poemsResult?.watermarkedPdf || null,
     };
   } catch (e: any) {
     console.error('Error fetching n8n execution:', e);
