@@ -28,10 +28,15 @@ const steps = [
   { label: 'Importálás', value: 'import' },
   { label: 'Versek ellenőrzése', value: 'review-poems' },
   { label: 'Fejezetek áttekintése', value: 'review-chapters' },
-  { label: 'Letöltés', value: 'download' }
+  { label: 'Letöltés', value: 'download' },
+  { label: 'Vásárlás', value: 'purchase' }
 ];
 
+const purchaseOptions = ref<any>(null);
+const showPurchaseStep = ref(false);
+
 const currentStepIndex = computed(() => {
+  if (showPurchaseStep.value) return 4; // Vásárlás
   if (displayPdf.value) return 3; // Letöltés
   if (chapters.value.length > 0) return 2; // Fejezetek áttekintése
   if (poems.value.length > 0) return 1; // Versek ellenőrzése
@@ -61,6 +66,8 @@ async function startWorkflow() {
   bookHtml.value = null;
   bookPdf.value = null;
   watermarkedPdf.value = null;
+  showPurchaseStep.value = false;
+  purchaseOptions.value = null;
 
   try {
     const res = await $fetch("/api/start", {
@@ -120,15 +127,22 @@ async function pollExecution() {
   }
 }
 
-async function buyBook(payload?: any) {
-  if (!executionId.value) return;
+function handleReviewPurchase(options: any) {
+  purchaseOptions.value = options;
+  showPurchaseStep.value = true;
+}
+
+async function buyBook(addressData: { billingAddress: any, shippingAddress: any }) {
+  if (!executionId.value || !purchaseOptions.value) return;
   isBuying.value = true;
   try {
     const res = await $fetch<{ url: string }>('/api/checkout', {
       method: 'POST',
       body: { 
         executionId: executionId.value,
-        printingOptions: payload
+        printingOptions: purchaseOptions.value,
+        billingAddress: addressData.billingAddress,
+        shippingAddress: addressData.shippingAddress
       }
     });
     if (res.url) {
@@ -265,6 +279,8 @@ function resetWorkflow() {
   bookHtml.value = null;
   bookPdf.value = null;
   watermarkedPdf.value = null;
+  showPurchaseStep.value = false;
+  purchaseOptions.value = null;
   error.value = null;
   if (polling.value) clearInterval(polling.value);
 }
@@ -387,7 +403,16 @@ onMounted(async () => {
           :is-buying="isBuying"
           :poems-count="poems.length"
           @download="downloadPdf"
-          @buy="buyBook"
+          @buy="handleReviewPurchase"
+        />
+
+        <WorkflowStepPurchase
+          v-if="currentStepIndex === 4 && !processingState && status !== 'canceled'"
+          :payment-status="paymentStatus"
+          :is-buying="isBuying"
+          :purchase-options="purchaseOptions"
+          @confirm-purchase="buyBook"
+          @back="showPurchaseStep = false"
         />
       </div>
 

@@ -20,6 +20,8 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const executionId = body.executionId
   const printingOptions = body.printingOptions
+  const billingAddress = body.billingAddress
+  const shippingAddress = body.shippingAddress
 
   if (!executionId) {
     throw createError({ statusCode: 400, statusMessage: 'Missing executionId' })
@@ -50,33 +52,13 @@ export default defineEventHandler(async (event) => {
     const { calculatePrice } = useExpresta()
     const { details } = printingOptions
     
-    // Server-side recalculation for security
-    // We assume 50 pages if not provided, or we could fetch from DB if we stored it
-    // For now, trusting the input 'details' structure but validating via calculation logic
     if (details && details.paperId && details.copies) {
       try {
         const priceRes = await calculatePrice({
           paperId: details.paperId,
           copies: details.copies,
-          pageCount: 50 // In a real app, fetch actual page count from generated PDF metadata in DB
+          pageCount: 50 
         })
-        
-        // Expresta price + Base PDF price logic? 
-        // Or just Printing price? 
-        // Usually "Print" implies you get the PDF too. 
-        // Let's assume Price = Printing Cost + PDF Base Cost?
-        // Or just Printing Cost (if it covers profit). 
-        // Let's use the calculated gross amount from Expresta (which included margin in our mock)
-        // But wait, the mock only added VAT. 
-        // Let's add the base PDF price to the printing cost to ensure we get our software fee.
-        
-        // However, the user might expect the "Total" shown in UI.
-        // In UI: displayPrice = calculatedPrice.
-        // calculatedPrice in utils/expresta was: (base + page * count) * copies * 1.27
-        // It didn't explicitly add the 3990 base fee.
-        // I should probably add the 3990 to the UI calculation too if that's the business model.
-        // For this task, I will use the value returned by `calculatePrice` as the FINAL price 
-        // because the user sees that in the UI.
         
         priceAmount = Math.round(priceRes.grossAmount * 100)
         productName = `Verseskötet (Nyomtatott + PDF)`
@@ -117,7 +99,12 @@ export default defineEventHandler(async (event) => {
   // Update DB
   await sql`
     UPDATE executions
-    SET stripe_session_id = ${checkoutSession.id}
+    SET 
+      stripe_session_id = ${checkoutSession.id},
+      billing_address = ${billingAddress ? JSON.stringify(billingAddress) : null},
+      shipping_address = ${shippingAddress ? JSON.stringify(shippingAddress) : null},
+      purchase_amount = ${priceAmount},
+      purchase_options = ${printingOptions ? JSON.stringify(printingOptions) : null}
     WHERE n8n_execution_id = ${executionId}
   `
 
