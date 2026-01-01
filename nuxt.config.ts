@@ -20,6 +20,9 @@ export default defineNuxtConfig({
     stripeSecretKey: process.env.STRIPE_SECRET_KEY || "",
     stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || "",
     xApiKey: process.env.X_API_KEY || "",
+    exprestaApiUser: process.env.EXPRESTA_API_USER || "",
+    exprestaApiPassword: process.env.EXPRESTA_API_PASSWORD || "",
+    exprestaApiBaseUrl: process.env.EXPRESTA_API_BASE_URL || "",
     public: {
       appName: "mypoems"
     },

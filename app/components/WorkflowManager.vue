@@ -120,13 +120,16 @@ async function pollExecution() {
   }
 }
 
-async function buyBook() {
+async function buyBook(payload?: any) {
   if (!executionId.value) return;
   isBuying.value = true;
   try {
     const res = await $fetch<{ url: string }>('/api/checkout', {
       method: 'POST',
-      body: { executionId: executionId.value }
+      body: { 
+        executionId: executionId.value,
+        printingOptions: payload
+      }
     });
     if (res.url) {
       window.location.href = res.url;
@@ -382,6 +385,7 @@ onMounted(async () => {
           :pdf-url="pdfUrl"
           :payment-status="paymentStatus"
           :is-buying="isBuying"
+          :poems-count="poems.length"
           @download="downloadPdf"
           @buy="buyBook"
         />

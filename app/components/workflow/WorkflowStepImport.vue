@@ -37,7 +37,7 @@ const poetId = computed({
           <span class="text-gray-400">poet.hu/szerzo/</span><span class="text-primary-600 font-bold">Azonosito</span>
         </div>
 
-        <UFormGroup
+        <UFormField
           label="Szerzői azonosító"
           name="poetId"
           help="Példa: Kiszely_Jozsef_Laszlone"
@@ -47,8 +47,9 @@ const poetId = computed({
             placeholder="Adja meg az azonosítót..."
             icon="i-lucide-at-sign"
             size="lg"
+            class="w-full"
           />
-        </UFormGroup>
+        </UFormField>
       </div>
 
       <template #footer>

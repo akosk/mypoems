@@ -1,14 +1,17 @@
 <script setup lang="ts">
+import PrintingOptions from '../PrintingOptions.vue';
+
 defineProps<{
   bookPdf: string | null;
   pdfUrl: string | null;
   paymentStatus?: string;
   isBuying?: boolean;
+  poemsCount?: number;
 }>();
 
 const emit = defineEmits<{
   (e: 'download'): void;
-  (e: 'buy'): void;
+  (e: 'buy', payload: any): void;
 }>();
 </script>
 
@@ -30,26 +33,24 @@ const emit = defineEmits<{
         />
       </div>
       <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton
-            v-if="paymentStatus === 'paid'"
-            color="primary"
-            variant="solid"
-            icon="i-lucide-download"
-            @click="$emit('download')"
-          >
-            PDF letöltése
-          </UButton>
-          <UButton
-            v-else
-            color="primary"
-            variant="solid"
-            icon="i-lucide-shopping-cart"
-            :loading="isBuying"
-            @click="$emit('buy')"
-          >
-            Könyv megvásárlása (3990 HUF)
-          </UButton>
+        <div class="flex flex-col gap-4">
+          <div v-if="paymentStatus === 'paid'" class="flex justify-end">
+            <UButton
+              color="primary"
+              variant="solid"
+              icon="i-lucide-download"
+              @click="$emit('download')"
+            >
+              PDF letöltése
+            </UButton>
+          </div>
+          <div v-else>
+            <PrintingOptions
+              :loading="isBuying"
+              :page-count="(poemsCount || 0) + 10" 
+              @buy="(payload) => $emit('buy', payload)"
+            />
+          </div>
         </div>
       </template>
     </UCard>

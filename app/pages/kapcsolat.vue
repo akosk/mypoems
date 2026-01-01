@@ -34,17 +34,18 @@ async function sendMessage() {
             class="space-y-6"
             @submit.prevent="sendMessage"
           >
-            <UFormGroup
+            <UFormField
               label="Név"
               name="name"
             >
               <UInput
                 v-model="state.name"
                 placeholder="Az Ön neve"
+                class="w-full"
               />
-            </UFormGroup>
+            </UFormField>
 
-            <UFormGroup
+            <UFormField
               label="E-mail cím"
               name="email"
             >
@@ -52,10 +53,11 @@ async function sendMessage() {
                 v-model="state.email"
                 type="email"
                 placeholder="pelda@email.hu"
+                class="w-full"
               />
-            </UFormGroup>
+            </UFormField>
 
-            <UFormGroup
+            <UFormField
               label="Üzenet"
               name="message"
             >
@@ -63,8 +65,9 @@ async function sendMessage() {
                 v-model="state.message"
                 :rows="5"
                 placeholder="Miben segíthetünk?"
+                class="w-full"
               />
-            </UFormGroup>
+            </UFormField>
 
             <div class="flex justify-end">
               <UButton
