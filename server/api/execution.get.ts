@@ -150,10 +150,13 @@ export default defineEventHandler(async (event) => {
 
     let user = null
     let paymentStatus = 'pending' // default
+    let coverImage: string | null = null
+    let bookTitle: string | null = null
+    let authorName: string | null = null
 
     try {
       const [dbExec] = await sql`
-        SELECT u.email, u.avatar_url, u.first_name, u.last_name, e.payment_status
+        SELECT u.email, u.avatar_url, u.first_name, u.last_name, e.payment_status, e.payload
         FROM executions e
         JOIN users u ON e.user_id = u.id
         WHERE e.n8n_execution_id = ${executionId}
@@ -165,6 +168,15 @@ export default defineEventHandler(async (event) => {
           avatar: dbExec.avatar_url,
           firstName: dbExec.first_name,
           lastName: dbExec.last_name
+        }
+        if (dbExec.payload?.coverImage) {
+          coverImage = dbExec.payload.coverImage
+        }
+        if (dbExec.payload?.bookTitle) {
+          bookTitle = dbExec.payload.bookTitle
+        }
+        if (dbExec.payload?.authorName) {
+          authorName = dbExec.payload.authorName
         }
       }
     } catch (e) {
@@ -183,6 +195,9 @@ export default defineEventHandler(async (event) => {
       bookHtml: poemsResult?.bookHtml || null,
       bookPdf: poemsResult?.bookPdf || null,
       watermarkedPdf: poemsResult?.watermarkedPdf || null,
+      coverImage,
+      bookTitle,
+      authorName,
     };
   } catch (e: any) {
     console.error('Error fetching n8n execution:', e);

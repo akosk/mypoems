@@ -23,6 +23,7 @@ export default defineNuxtConfig({
     exprestaApiUser: process.env.EXPRESTA_API_USER || "",
     exprestaApiPassword: process.env.EXPRESTA_API_PASSWORD || "",
     exprestaApiBaseUrl: process.env.EXPRESTA_API_BASE_URL || "",
+    openaiApiKey: process.env.OPENAI_API_KEY || "",
     public: {
       appName: "mypoems"
     },

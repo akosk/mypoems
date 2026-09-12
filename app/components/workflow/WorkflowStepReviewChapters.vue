@@ -29,10 +29,10 @@ const emit = defineEmits<{
           <UButton
             size="lg"
             color="primary"
-            icon="i-lucide-book-check"
+            icon="i-lucide-arrow-right"
             @click="$emit('continue')"
           >
-            Könyv generálása
+            Tovább
           </UButton>
         </div>
       </template>

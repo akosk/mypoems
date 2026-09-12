@@ -18,6 +18,10 @@ const bookPdf = ref<string | null>(null);
 const watermarkedPdf = ref<string | null>(null);
 const polling = ref<ReturnType<typeof setInterval> | null>(null);
 const poetId = ref("Kiszely_Jozsef_Laszlone");
+const chaptersConfirmed = ref(false);
+const coverImage = ref<string | null>(null);
+const bookTitle = ref<string>('');
+const authorName = ref<string>('');
 
 const displayPdf = computed(() => {
   if (paymentStatus.value === 'paid') return bookPdf.value;
@@ -28,6 +32,7 @@ const steps = [
   { label: 'Importálás', value: 'import' },
   { label: 'Versek ellenőrzése', value: 'review-poems' },
   { label: 'Fejezetek áttekintése', value: 'review-chapters' },
+  { label: 'Borító', value: 'cover' },
   { label: 'Letöltés', value: 'download' },
   { label: 'Vásárlás', value: 'purchase' }
 ];
@@ -36,8 +41,9 @@ const purchaseOptions = ref<any>(null);
 const showPurchaseStep = ref(false);
 
 const currentStepIndex = computed(() => {
-  if (showPurchaseStep.value) return 4; // Vásárlás
-  if (displayPdf.value) return 3; // Letöltés
+  if (showPurchaseStep.value) return 5; // Vásárlás
+  if (displayPdf.value) return 4; // Letöltés
+  if (chaptersConfirmed.value) return 3; // Borító
   if (chapters.value.length > 0) return 2; // Fejezetek áttekintése
   if (poems.value.length > 0) return 1; // Versek ellenőrzése
   return 0; // Importálás
@@ -68,6 +74,10 @@ async function startWorkflow() {
   watermarkedPdf.value = null;
   showPurchaseStep.value = false;
   purchaseOptions.value = null;
+  chaptersConfirmed.value = false;
+  coverImage.value = null;
+  bookTitle.value = '';
+  authorName.value = '';
 
   try {
     const res = await $fetch("/api/start", {
@@ -113,6 +123,12 @@ async function pollExecution() {
     if (res?.bookHtml) bookHtml.value = res.bookHtml;
     if (res?.bookPdf) bookPdf.value = res.bookPdf;
     if (res?.watermarkedPdf) watermarkedPdf.value = res.watermarkedPdf;
+    if (res?.coverImage) {
+      coverImage.value = res.coverImage;
+      chaptersConfirmed.value = true;
+    }
+    if (res?.bookTitle) bookTitle.value = res.bookTitle;
+    if (res?.authorName) authorName.value = res.authorName;
 
     // Clear processing state when data arrives
     if (processingState.value === 'collecting' && poems.value.length > 0) processingState.value = null;
@@ -213,7 +229,6 @@ async function resumeExecution(decision: string) {
 
   loading.value = true;
   if (currentStepIndex.value === 1) processingState.value = 'categorizing';
-  if (currentStepIndex.value === 2) processingState.value = 'generating';
   error.value = null;
 
   // @ts-expect-error - filter based on dynamic property
@@ -228,6 +243,75 @@ async function resumeExecution(decision: string) {
           decision,
           poems: activePoems,
           chapters: chapters.value
+        }
+      }
+    });
+    result.value = res;
+    status.value = "running";
+    startPolling();
+  } catch (e: any) {
+    error.value =
+      e?.data?.statusMessage ||
+      e?.statusMessage ||
+      e?.message ||
+      "Ismeretlen hiba történt";
+    processingState.value = null;
+  } finally {
+    loading.value = false;
+  }
+}
+
+function confirmChapters() {
+  chaptersConfirmed.value = true;
+}
+
+async function handleCoverAccepted(data: { imageBase64: string, bookTitle: string, authorName: string }) {
+  coverImage.value = data.imageBase64;
+  bookTitle.value = data.bookTitle;
+  authorName.value = data.authorName;
+
+  // Save cover to DB
+  if (executionId.value) {
+    try {
+      await $fetch('/api/save-cover', {
+        method: 'POST',
+        body: {
+          executionId: executionId.value,
+          coverImageBase64: data.imageBase64,
+          bookTitle: data.bookTitle,
+          authorName: data.authorName
+        }
+      });
+    } catch (e) {
+      console.error('Failed to save cover to DB', e);
+    }
+  }
+
+  // Resume n8n with cover image
+  if (!resumeUrl.value) {
+    error.value = "Hiányzik a folytatáshoz szükséges URL (n8n).";
+    return;
+  }
+
+  processingState.value = 'generating';
+  loading.value = true;
+  error.value = null;
+
+  // @ts-expect-error - filter based on dynamic property
+  const activePoems = poems.value.filter(p => !p.excluded);
+
+  try {
+    const res = await $fetch("/api/resume", {
+      method: "POST",
+      body: {
+        resumeUrl: resumeUrl.value,
+        data: {
+          decision: 'continue',
+          poems: activePoems,
+          chapters: chapters.value,
+          coverImage: data.imageBase64,
+          bookTitle: data.bookTitle,
+          authorName: data.authorName
         }
       }
     });
@@ -281,6 +365,10 @@ function resetWorkflow() {
   watermarkedPdf.value = null;
   showPurchaseStep.value = false;
   purchaseOptions.value = null;
+  chaptersConfirmed.value = false;
+  coverImage.value = null;
+  bookTitle.value = '';
+  authorName.value = '';
   error.value = null;
   if (polling.value) clearInterval(polling.value);
 }
@@ -392,11 +480,21 @@ onMounted(async () => {
         <WorkflowStepReviewChapters
           v-if="currentStepIndex === 2 && !processingState && status !== 'canceled'"
           v-model:chapters="chapters"
-          @continue="resumeExecution('continue')"
+          @continue="confirmChapters"
+        />
+
+        <WorkflowStepCover
+          v-if="currentStepIndex === 3 && !processingState && status !== 'canceled'"
+          :chapters="chapters"
+          :poet-name="poetId"
+          :execution-id="executionId"
+          :initial-book-title="bookTitle"
+          :initial-author-name="authorName"
+          @continue="handleCoverAccepted"
         />
 
         <WorkflowStepDownload
-          v-if="currentStepIndex === 3 && !processingState && status !== 'canceled'"
+          v-if="currentStepIndex === 4 && !processingState && status !== 'canceled'"
           :book-pdf="displayPdf"
           :pdf-url="pdfUrl"
           :payment-status="paymentStatus"
@@ -407,7 +505,7 @@ onMounted(async () => {
         />
 
         <WorkflowStepPurchase
-          v-if="currentStepIndex === 4 && !processingState && status !== 'canceled'"
+          v-if="currentStepIndex === 5 && !processingState && status !== 'canceled'"
           :payment-status="paymentStatus"
           :is-buying="isBuying"
           :purchase-options="purchaseOptions"

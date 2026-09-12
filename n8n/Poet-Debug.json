@@ -1,0 +1,737 @@
+{
+  "name": "Poet-Debug",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "={{ $json.page === 1 ? $json.rootUrl : `${$json.rootUrl}/${$json.page}` }}\n",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        14800,
+        1376
+      ],
+      "id": "6fd59772-e6c6-49c0-aa96-21a4ba7bd9fc",
+      "name": "HTTP Request2",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        14976,
+        1584
+      ],
+      "id": "64123da5-abb9-4182-a5f3-7dacfa621621",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "a_text",
+              "cssSelector": "a",
+              "returnArray": true
+            },
+            {
+              "key": "a_href",
+              "cssSelector": "a",
+              "returnValue": "attribute",
+              "returnArray": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        15216,
+        1584
+      ],
+      "id": "c362c624-dcf6-4042-8606-53ec74f964a1",
+      "name": "HTML1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\n// extracted by HTML node\nconst texts = item.a_text || [];\nconst hrefs = item.a_href || [];\n\n// state comes from the Merge node (because HTML node drops it)\nconst state = $node[\"Merge1\"].json;\n\nconst prev = Array.isArray(state.allLinks) ? state.allLinks : [];\nconst newLinks = [];\n\nfor (let i = 0; i < Math.min(texts.length, hrefs.length); i++) {\n  const t = String(texts[i] ?? '').trim();\n  if (t === \"Tovább...\" || (t.startsWith(\"Tov\") && t.endsWith(\"bb...\"))) {\n    const href = hrefs[i];\n    if (href) newLinks.push(href);\n  }\n}\n\nlet hasNext = false;\nfor (const t of texts) {\n  if (String(t ?? '').trim().includes(\"vetkez\")) { // Következő\n    hasNext = true;\n    break;\n  }\n}\n\nreturn [{\n  json: {\n    rootUrl: state.rootUrl,\n    page: (state.page ?? 1) + 1,\n    allLinks: [...prev, ...newLinks],\n    hasNext,\n    addedThisPage: newLinks.length,\n  },\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        15424,
+        1584
+      ],
+      "id": "6383d897-2a48-466e-a193-883f43b73dd1",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "06fe4a98-d780-48fb-9420-3591851058a8",
+              "leftValue": "={{ $json.hasNext }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        15632,
+        1584
+      ],
+      "id": "d846de8a-dab7-4e34-9927-d5bbebb04c1f",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "jsCode": "let links = $input.first().json.allLinks;\n\n// normalize to real JS array\nif (typeof links === 'string') {\n  try {\n    links = JSON.parse(links);\n  } catch {\n    links = [];\n  }\n}\n\nif (!Array.isArray(links)) {\n  links = [];\n}\n\nconsole.log('links normalized:', links);\n\nreturn links.map(url => ({\n  json: { \"url\":url.href }\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16080,
+        1600
+      ],
+      "id": "21c9991c-6c4d-4bc9-81c1-2a5f5474cfe9",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.poet.hu{{$json.url}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        16288,
+        1600
+      ],
+      "id": "500a2fb5-9cae-4fec-a00b-8f3ec3699186",
+      "name": "HTTP Request3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const decodeNumericEntities = (s) =>\n  s.replace(/&#(\\d+);/g, (_, n) => String.fromCharCode(Number(n)));\n\nconst decodeBasicEntities = (s) =>\n  s.replace(/&nbsp;/g, ' ')\n   .replace(/&amp;/g, '&')\n   .replace(/&quot;/g, '\"')\n   .replace(/&lt;/g, '<')\n   .replace(/&gt;/g, '>');\n\nconst normalizePoem = (poemHtml) => {\n  if (!poemHtml) return '';\n\n  return decodeNumericEntities(\n    decodeBasicEntities(\n      String(poemHtml)\n        .replace(/<br\\s*\\/?>/gi, '\\n')\n        .replace(/<\\/?span[^>]*>/gi, '')\n        .replace(/<\\/?p[^>]*>/gi, '')\n        .replace(/\\r\\n/g, '\\n')\n    )\n  ).trim();\n};\n\nreturn items.map((item) => {\n  const title = (item.json.title || '').trim();\n  const poemHtml = item.json.poem_html || item.json.poem_text_raw || '';\n  const poem = normalizePoem(poemHtml);\n\n  return {\n    json: {\n      url: item.json.url,\n      title,\n      poem,\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16704,
+        1600
+      ],
+      "id": "09119ba3-919c-4b1a-a78d-314b75273e82",
+      "name": "Normalize poem text1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst agg = $node[\"Aggregate poems1\"].json;\n\nconst poems = data.body.poems || [];\nconst chapters = data.body.chapters || [];\n\nconst BOOK_TITLE = data.bookTitle || agg.bookTitle || \"Versek\";\nconst BOOK_AUTHOR = data.bookAuthor || agg.bookAuthor || \"Kiszely Jószefné\";\nconst coverImageBase64 = data.body?.coverImage || data.coverImage;\nconst COVER_IMG_URL = coverImageBase64\n  ? `data:image/png;base64,${coverImageBase64}`\n  : (data.coverImgUrl || agg.coverImgUrl || \"https://html.kiszely.work/assets/cover_pencil.jpg\");\n\nconst escapeHtml = (s = \"\") =>\n  String(s)\n    .replace(/&/g, \"&amp;\")\n    .replace(/</g, \"&lt;\")\n    .replace(/>/g, \"&gt;\");\n\nconst slugify = (s = \"\") =>\n  String(s)\n    .toLowerCase()\n    .trim()\n    .replace(/[^\\p{L}\\p{N}]+/gu, \"-\")\n    .replace(/^-+|-+$/g, \"\");\n\n// Ensure unique ids even if titles repeat\nconst makeUniqueId = (() => {\n  const used = new Map();\n  return (base) => {\n    const b = slugify(base) || \"x\";\n    const n = (used.get(b) || 0) + 1;\n    used.set(b, n);\n    return n === 1 ? b : `${b}-${n}`;\n  };\n})();\n\nconst IMPRINT_HTML = `\n<section class=\"imprint\">\n  <div class=\"imprint-content\">\n    <h2 class=\"imprint-title\">Impresszum</h2>\n\n    <p><strong>${escapeHtml(BOOK_TITLE)}</strong></p>\n    <p>${escapeHtml(BOOK_AUTHOR)}</p>\n\n    <p>\n      © ${new Date().getFullYear()} ${escapeHtml(BOOK_AUTHOR)}<br />\n      Minden jog fenntartva.\n    </p>\n\n    <p>\n      A kötet versei a szerző szellemi tulajdonát képezik.<br />\n      A mű részben vagy egészben történő utánközlése,<br />\n      sokszorosítása vagy terjesztése csak a szerző<br />\n      előzetes írásbeli engedélyével lehetséges.\n    </p>\n\n    <p class=\"imprint-meta\">\n      Magánkiadás<br />\n      Magyarország\n    </p>\n  </div>\n</section>\n`;\n\n// Precompute ids for chapters + poems for TOC links\nconst chapterMeta = chapters.map((ch) => {\n  const chId = `ch-${makeUniqueId(ch.name)}`;\n  const poemMeta = (ch.poems || []).map((p) => ({\n    ...p,\n    _id: `p-${makeUniqueId(p.title || \"vers\")}`,\n  }));\n  return { ...ch, _id: chId, poems: poemMeta };\n});\n\n// Chapter title page (full page, centered)\nconst chapterTitlePage = (ch) => `\n<section class=\"chapter-title-page\" id=\"${ch._id}\">\n  <div class=\"chapter-title\">${escapeHtml(ch.name)}</div>\n</section>\n`;\n\n// Poem block\nconst poemBlock = (p) => `\n<section class=\"poem\" id=\"${p._id}\">\n  <h2 class=\"poem-title\">${escapeHtml(p.title)}</h2>\n  <pre class=\"poem-text\">${escapeHtml(p.poem)}</pre>\n</section>\n`;\n\n// Build content in chapter order\nconst contentBlocks = chapterMeta\n  .map((ch) => {\n    const title = chapterTitlePage(ch);\n    const poemsHtml = (ch.poems || []).map(poemBlock).join(\"\\n\");\n    return `${title}\\n${poemsHtml}`;\n  })\n  .join(\"\\n\");\n\n\nconst html = `<!DOCTYPE html>\n<html lang=\"hu\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n  <title>${escapeHtml(BOOK_TITLE)}</title>\n\n  <link href=\"https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600&display=swap\" rel=\"stylesheet\">\n\n  <style>\n    @page {\n      size: A5;\n      margin: 25mm 22mm 30mm 22mm;\n    }\n    @page:first { margin: 0; }\n\n    body {\n      font-family: \"EB Garamond\", serif;\n      font-size: 12.5pt;\n      line-height: 1.6;\n      color: #111;\n      margin: 0;\n      padding: 0;\n    }\n\n    /* Cover */\n    .cover {\n      height: 100vh;\n      display: flex;\n      flex-direction: column;\n      justify-content: center;\n      align-items: center;\n      text-align: center;\n      page-break-after: always;\n      box-sizing: border-box;\n      padding: 25mm 22mm 30mm 22mm;\n    }\n    .cover-image {\n      max-width: 70%;\n      max-height: 45vh;\n      object-fit: contain;\n      display: block;\n      margin: 0 auto 14mm auto;\n    }\n    .cover h1 {\n      font-size: 42pt;\n      font-weight: 600;\n      margin: 0 0 8mm 0;\n      letter-spacing: 0.04em;\n    }\n    .cover h2 {\n      font-size: 18pt;\n      font-weight: 400;\n      margin: 0;\n      letter-spacing: 0.02em;\n    }\n\n    /* Impresszum */\n    section.imprint {\n      page-break-after: always;\n      display: flex;\n      justify-content: center;\n      align-items: center;\n      height: 100%;\n    }\n    .imprint-content {\n      text-align: center;\n      font-size: 11.5pt;\n      line-height: 1.6;\n      max-width: 90%;\n    }\n    .imprint-title {\n      font-weight: 500;\n      letter-spacing: 0.06em;\n      margin-bottom: 36px;\n    }\n    .imprint-content p { margin: 0 0 18px 0; }\n    .imprint-meta { margin-top: 36px; font-size: 10.5pt; color: #444; }\n\n    /* Chapter title page: full page, centered */\n    .chapter-title-page {\n      page-break-before: always;\n      page-break-after: always;\n      display: flex;\n      align-items: center;\n      justify-content: center;\n      height: 100vh;\n      text-align: center;\n    }\n    .chapter-title {\n      font-size: 26pt;\n      font-weight: 500;\n      letter-spacing: 0.08em;\n    }\n\n    /* Poems */\n    section.poem {\n      page-break-before: always;\n      page-break-inside: avoid;\n    }\n    h2.poem-title {\n      text-align: center;\n      font-weight: 500;\n      margin-bottom: 24px;\n      margin-top: 60px;\n      letter-spacing: 0.04em;\n    }\n    pre.poem-text {\n      white-space: pre-wrap;\n      font-family: inherit;\n      font-size: 12.5pt;\n      margin: 0;\n    }\n\n    /* TOC (at the end) */\n    section.toc {\n      page-break-before: always;\n      page-break-after: always;\n    }\n    .toc-title {\n      text-align: center;\n      font-weight: 500;\n      letter-spacing: 0.06em;\n      margin: 40px 0 28px 0;\n    }\n    .toc-chapter { margin: 0 0 14px 0; }\n    .toc-chapter-row { margin: 0 0 6px 0; }\n    .toc-poems { padding-left: 10mm; }\n    .toc-poem-row { margin: 4px 0; }\n\n    .toc-link {\n      color: inherit;\n      text-decoration: none;\n    }\n    .toc-chapter-link {\n      font-weight: 500;\n      letter-spacing: 0.02em;\n    }\n  </style>\n</head>\n\n<body>\n  <section class=\"cover\">\n    <img src=\"${escapeHtml(COVER_IMG_URL)}\" alt=\"Cover\" class=\"cover-image\" />\n    <h1>${escapeHtml(BOOK_TITLE)}</h1>\n    <h2>${escapeHtml(BOOK_AUTHOR)}</h2>\n  </section>\n\n  ${IMPRINT_HTML}\n\n  ${contentBlocks}\n\n</body>\n</html>`;\n\nreturn [{ json: { html } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        18192,
+        1600
+      ],
+      "id": "7ea96888-0577-4ada-a776-1d97af548950",
+      "name": "Build Book HTML1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3b4ccfa3-f97f-4307-8267-ab01125f2bea",
+              "name": "rootUrl",
+              "value": "=https://www.poet.hu/szerzo/{{$('Webhook1').item.json.body.poetId}}",
+              "type": "string"
+            },
+            {
+              "id": "863f35bd-6fa3-4a45-a1ee-002dec55d0bb",
+              "name": "page",
+              "value": 1,
+              "type": "number"
+            },
+            {
+              "id": "a52e5f45-b948-40dd-a2c6-843fbcd3f5f0",
+              "name": "allLinks",
+              "value": "[]",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        14448,
+        1600
+      ],
+      "id": "9e5ba847-5427-4173-8d3b-c15ee3f91af3",
+      "name": "Init Fields1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "15234205-28fd-4495-b796-6af892fcbdbc",
+              "name": "allLinks",
+              "value": "={{ $json.allLinks }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        15872,
+        1600
+      ],
+      "id": "727d5984-627c-4406-ad5a-7d0c2769783e",
+      "name": "Convert links1"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "title",
+              "cssSelector": "#idz h1"
+            },
+            {
+              "key": "poem_html",
+              "cssSelector": "#idz p.vers"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        16496,
+        1600
+      ],
+      "id": "0ea606a9-0460-421e-b704-5e592b5d151f",
+      "name": "Extract poems1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// One OpenAI call for all poems: pack items into a single item\nconst poems = items.map((it, idx) => ({\n  id: idx + 1,\n  title: it.json.title ?? \"\",\n  poem: it.json.poem ?? \"\",\n  url: it.json.url ?? \"\",\n}));\n\nreturn [{\n  json: {\n    poems,\n    bookTitle: \"Versek\",\n    bookAuthor: \"Kiszely Jószefné\",\n    coverImgUrl: \"https://html.kiszely.work/assets/cover_pencil.jpg\",\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16912,
+        1600
+      ],
+      "id": "f51e677f-d387-4907-83c6-b2f7a7d0d570",
+      "name": "Aggregate poems1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// poems + meta az Aggregate poems node-ból\nconst agg = $node[\"Aggregate poems1\"].json;\n// Get filtered poems from Wait node (user input)\nconst waitData = $node[\"Wait for poems1\"].json;\nconst rawPoems = (waitData && (waitData.poems || waitData.body?.poems)) ? (waitData.poems || waitData.body?.poems) : (agg.poems || []);\nconst poems = rawPoems.map((p, i) => ({ ...p, id: i + 1 }));\n\n// OpenAI response (jelen node inputja)\nconst content = $input.first().json.choices?.[0]?.message?.content ?? \"{}\";\n\nlet parsed;\ntry { parsed = JSON.parse(content); } catch { parsed = { categories: [] }; }\n\nlet categories = Array.isArray(parsed.categories) ? parsed.categories : [];\n\n// validation\nconst n = poems.length;\nconst allIds = new Set();\nfor (const c of categories) {\n  c.poem_ids = Array.isArray(c.poem_ids) ? c.poem_ids : [];\n  for (const id of c.poem_ids) allIds.add(id);\n}\nconst okCount = categories.length >= 4 && categories.length <= 8;\nconst okAll = allIds.size === n && [...allIds].every(id => id >= 1 && id <= n);\n\nif (!okCount || !okAll) {\n  const bucketCount = Math.min(4, Math.max(1, n));\n  const names = [\"Életképek\", \"Érzelmek\", \"Gondolatok\", \"Egyéb\"];\n  const buckets = Array.from({ length: bucketCount }, (_, i) => ({\n    name: names[i] || `Fejezet ${i + 1}`,\n    poem_ids: [],\n  }));\n  for (let i = 0; i < n; i++) buckets[i % bucketCount].poem_ids.push(i + 1);\n  categories = buckets;\n}\n\n// chapters felépítése\nconst poemById = new Map(poems.map(p => [p.id, p]));\nconst chapters = categories.map(c => ({\n  name: String(c.name || \"\").trim() || \"Fejezet\",\n  poems: (c.poem_ids || []).map(id => poemById.get(id)).filter(Boolean),\n}));\n\nreturn [{\n  json: {\n    poems,\n    chapters,\n    bookTitle: agg.bookTitle,\n    bookAuthor: agg.bookAuthor,\n    coverImgUrl: agg.coverImgUrl,\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        17728,
+        1600
+      ],
+      "id": "10adb0f2-005c-428a-8367-19a5b746453c",
+      "name": "Parse + validate categories1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  (() => {\n    const rawPoems = $json.poems || $json.body?.poems || [];\n    const poems = rawPoems.map((p, i) => ({ ...p, id: i + 1 }));\n\n    const schemaHint = `\nReturn ONLY valid JSON in this exact shape:\n{\n  \"categories\": [\n    {\n      \"name\": \"Kategória neve\",\n      \"poem_ids\": [1,2,3]\n    }\n  ]\n}\n\nRules:\n- categories count: 4..8\n- every poem id 1..N appears exactly once across all poem_ids\n- category names: Hungarian, short (1-3 words), book-like chapter titles\n- try to balance categories (avoid 1 poem category unless necessary)\n- try to come up with interesting chapter titles.\n`;\n\n    return JSON.stringify({\n      model: $env.OPENAI_MODEL || \"gpt-4.1-mini\",\n      temperature: 0.3,\n      messages: [\n        {\n          role: \"system\",\n          content:\n            \"You are a careful literary editor. Categorize poems into chapter themes for a Hungarian poetry book. Try to find interesting chaper names that fits to the poems in it.\"\n        },\n        {\n          role: \"user\",\n          content:\n            schemaHint +\n            \"\\n\\nHere are the poems as JSON:\\n\" +\n            JSON.stringify(poems)\n        }\n      ],\n      response_format: { \"type\": \"json_object\" }\n    });\n  })()\n}}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        17536,
+        1600
+      ],
+      "id": "d42373f9-7321-4116-878b-f1354b02b251",
+      "name": "Agent Create categories1",
+      "credentials": {
+        "openAiApi": {
+          "id": "nLjK1JXFQJYmKYXZ",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "3b2a8d79-e8ab-4093-806e-17eeb30350a9",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        13984,
+        1600
+      ],
+      "id": "a6f590e5-9749-4bcf-9ff3-1c54e269c02a",
+      "name": "Webhook1",
+      "webhookId": "3b2a8d79-e8ab-4093-806e-17eeb30350a9",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "zMVO2SYPthLSmb1B",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "=  {\n    \"status\": \"started\",\n    \"resumeUrl\": \"{{$execution.resumeUrl}}\",\n    \"executionId\": \"{{$execution.id}}\",\n    \"workflowId\": \"{{$workflow.id}}\",\n    \"startedAt\": \"{{$now}}\"\n    \n  }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        14192,
+        1600
+      ],
+      "id": "5f53306b-9e69-4135-a209-aa4f5c66d873",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.pdfshift.io/v3/convert/pdf",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{\n  (() => {\n     const PAGE = \"{\" + \"{\" + \"page\" + \"}\" + \"}\";\n    const style = \"width:100%;box-sizing:border-box;padding:0 22mm 8mm 22mm;font-size:10.5pt;font-family:'EB Garamond',serif;text-align:center;\";\n\n    return JSON.stringify({\n      source: $json.html,\n      use_print: true,\n      footer: {\n        source: `<div style=\"${style}\">${PAGE}</div>`,\n        height: \"20mm\",\n        start_at: 2\n      }\n    });\n  })()\n}}\n",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        18448,
+        1616
+      ],
+      "id": "5e9401dd-eab0-4c1b-ac33-d8f49e8974ae",
+      "name": "PDFShift1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "CmweFwfTS0bJpiMi",
+          "name": "PDFShift N8N"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "httpMethod": "POST",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        17936,
+        1616
+      ],
+      "id": "68a1ca6b-8023-4722-9f43-0a0d77a016e0",
+      "name": "Wait for categories1",
+      "webhookId": "wait-webhook-2-id"
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "httpMethod": "POST",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        17120,
+        1600
+      ],
+      "id": "a720dd15-90b7-4e01-b187-82496e66be79",
+      "name": "Wait for poems1",
+      "webhookId": "5eb648ea-a35f-4436-af1d-db91f1f80f5f"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://pdf-service.kiszely.work/toc",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        18752,
+        1616
+      ],
+      "id": "d36cc22b-f181-4589-843c-06c6f323873d",
+      "name": "TOC Service"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://pdf-service.kiszely.work/watermark",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        19056,
+        1616
+      ],
+      "id": "5fcce132-dad0-470e-b1ea-97794f3140ab",
+      "name": "Watermark Service"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "HTML1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ],
+        [
+          {
+            "node": "Convert links1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request3": {
+      "main": [
+        [
+          {
+            "node": "Extract poems1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize poem text1": {
+      "main": [
+        [
+          {
+            "node": "Aggregate poems1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Book HTML1": {
+      "main": [
+        [
+          {
+            "node": "PDFShift1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Init Fields1": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert links1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract poems1": {
+      "main": [
+        [
+          {
+            "node": "Normalize poem text1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate poems1": {
+      "main": [
+        [
+          {
+            "node": "Wait for poems1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse + validate categories1": {
+      "main": [
+        [
+          {
+            "node": "Wait for categories1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent Create categories1": {
+      "main": [
+        [
+          {
+            "node": "Parse + validate categories1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Init Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for categories1": {
+      "main": [
+        [
+          {
+            "node": "Build Book HTML1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for poems1": {
+      "main": [
+        [
+          {
+            "node": "Agent Create categories1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PDFShift1": {
+      "main": [
+        [
+          {
+            "node": "TOC Service",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TOC Service": {
+      "main": [
+        [
+          {
+            "node": "Watermark Service",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a30f853c-e8d3-4072-9702-840812baf7c2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f58b7c6729a8f3a31daa5ec2d11f483bb8b182a5fbfc6ae56490d62b4dff492a"
+  },
+  "id": "GllnGrQSIZBVcxqp",
+  "tags": []
+}
